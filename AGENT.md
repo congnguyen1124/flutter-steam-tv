@@ -7,6 +7,21 @@
 - Use the Android Compose project as a behavior and visual reference, not as a line-by-line template.
 - Keep all user-facing copy, accessibility labels, preview fixtures, and dummy data in English.
 
+## Playback
+
+- Never talk to a native player directly. All playback goes through `stream_player`
+  (`../flutter_stream_player/`): commands in, one `StreamPlayerState` out.
+- Read [`doc_architechture/native_player_bridge.md`](doc_architechture/native_player_bridge.md)
+  before changing anything in `features/player/` or in the bridge packages.
+- Gate every playback control on `controller.capabilities`. A command a host cannot honour is a
+  documented no-op, so an ungated control renders as a button that does nothing on Tizen.
+- `StreamPlayerController.close()` is mandatory, from `ref.onDispose`. A leaked player holds a
+  hardware decoder.
+- Changing the channel vocabulary means changing `stream_player_channels.dart` **and**
+  `StreamPlayerWire.kt` in the same commit. Neither compiler can see the other.
+- Publish the Android engine before an Android build:
+  `cd ../android_stream_player && ./gradlew :stream-player:publishToMavenLocal`.
+
 ## Architecture
 
 - Organize code feature-first: `features/<feature>/{data,domain,presentation}`.
