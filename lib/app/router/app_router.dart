@@ -2,6 +2,7 @@ import 'package:flutter_steam_tv/features/calendar/presentation/view/calendar_ro
 import 'package:flutter_steam_tv/features/home/presentation/view/home_screen.dart';
 import 'package:flutter_steam_tv/features/main/presentation/navigation/main_navigation_origin.dart';
 import 'package:flutter_steam_tv/features/main/presentation/view/main_route.dart';
+import 'package:flutter_steam_tv/features/player/presentation/view/player_route.dart';
 import 'package:flutter_steam_tv/features/profile/presentation/view/profile_route.dart';
 import 'package:flutter_steam_tv/features/search/presentation/view/search_route.dart';
 import 'package:flutter_steam_tv/features/setting/presentation/view/setting_route.dart';
@@ -43,6 +44,13 @@ GoRouter appRouter(Ref ref) {
             builder: (_, _) => const ProfileRoute(),
           ),
         ],
+      ),
+      // Outside the ShellRoute on purpose. Playback is full-screen: inside the shell it would render
+      // beneath the top bar, and the bar would keep taking D-pad focus away from the controls.
+      GoRoute(
+        path: PlayerRoute.path,
+        builder: (_, state) =>
+            PlayerRoute(itemId: state.pathParameters['itemId'] ?? ''),
       ),
     ],
   );

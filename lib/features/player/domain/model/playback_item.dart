@@ -1,8 +1,9 @@
 /// What the player needs to know about one item.
 ///
 /// Deliberately thin. The player screen renders a title, decides whether a seek bar makes sense,
-/// and plays a URL — nothing else. Cast lists, genres and comments belong to a detail feature, and
-/// putting them here would make every playback path depend on content the player never draws.
+/// and plays a URL — nothing else. Cast lists, artwork and episode grids belong to the catalogue
+/// and to a detail screen; carrying them here would make every playback path depend on content the
+/// player never draws.
 final class PlaybackItem {
   /// Describes one playable item.
   const PlaybackItem({
@@ -14,6 +15,10 @@ final class PlaybackItem {
   });
 
   /// The catalogue id this item was resolved from.
+  ///
+  /// Not always the id that was asked for: pressing a series with no stream of its own resolves to
+  /// its first episode, and this is the episode's id. That is what makes "what is actually playing"
+  /// answerable from the state alone.
   final String id;
 
   /// Shown in the controller's title block.

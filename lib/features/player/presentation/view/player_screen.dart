@@ -165,8 +165,11 @@ final class _PlayerScreenState extends State<PlayerScreen> {
     final owner = _focusOwner;
 
     return PopScope(
-      // Back is a step within the screen while any chrome is up, and only then a pop.
-      canPop: owner == PlayerFocusOwner.surface || owner == PlayerFocusOwner.error,
+      // Never `true`. Back has four possible meanings here — close the panel, hide the chrome, leave
+      // the player, or leave a deep-linked player that has nothing to pop back to — and letting
+      // Navigator handle some of them would split that decision across two places. One handler owns
+      // all four; [PlayerScreen.onExit] owns the last two.
+      canPop: false,
       onPopInvokedWithResult: _onPopInvoked,
       child: Scaffold(
         backgroundColor: StreamTvColors.playerBackground,
@@ -330,6 +333,8 @@ final class _PlayerScreenState extends State<PlayerScreen> {
 
   void _onPopInvoked(bool didPop, Object? result) {
     if (didPop) {
+      // Unreachable while `canPop` is false, and guarded anyway: a pop that already happened must
+      // not also run the in-screen back step, or leaving the player would close a panel behind it.
       return;
     }
     if (_isSettingsOpen) {

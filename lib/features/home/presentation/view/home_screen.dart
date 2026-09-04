@@ -8,6 +8,8 @@ import 'package:flutter_steam_tv/features/home/presentation/view_model/home_view
 import 'package:flutter_steam_tv/features/home/presentation/widget/home_content_view.dart';
 import 'package:flutter_steam_tv/features/home/presentation/widget/home_error_view.dart';
 import 'package:flutter_steam_tv/features/home/presentation/widget/home_loading_view.dart';
+import 'package:flutter_steam_tv/features/player/presentation/view/player_route.dart';
+import 'package:go_router/go_router.dart';
 
 final class HomeScreen extends ConsumerWidget {
   const HomeScreen({this.autofocusContent = true, super.key});
@@ -22,28 +24,18 @@ final class HomeScreen extends ConsumerWidget {
       state: ref.watch(homeViewModelProvider),
       autofocusContent: autofocusContent,
       onRetry: ref.read(homeViewModelProvider.notifier).reload,
-      onItemPressed: (item) => _showItemDetails(context, item),
+      onItemPressed: (item) => _play(context, item),
     );
   }
 
-  void _showItemDetails(BuildContext context, HomeItem item) {
-    unawaited(
-      showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(item.title),
-          content: Text(item.description),
-          actions: [
-            TextButton.icon(
-              autofocus: true,
-              onPressed: Navigator.of(context).pop,
-              icon: const Icon(Icons.close),
-              label: const Text('Close'),
-            ),
-          ],
-        ),
-      ),
-    );
+  /// Pushed rather than navigated to, so Back on the remote returns to this row with focus where
+  /// the viewer left it — `go` would rebuild Home from scratch and drop that.
+  ///
+  /// Only the id travels. The player resolves the item from the same catalogue Home read, which is
+  /// what keeps the two from drifting: passing the whole `HomeItem` through navigation would work
+  /// today and break the first time a deep link opens the player directly.
+  void _play(BuildContext context, HomeItem item) {
+    unawaited(context.push<void>(PlayerRoute.locationFor(item.id)));
   }
 }
 

@@ -1,20 +1,17 @@
-import 'package:flutter_steam_tv/features/player/data/repository/playback_repository_impl.dart';
-import 'package:flutter_steam_tv/features/player/data/source/playback_data_source.dart';
+import 'package:flutter_steam_tv/features/home/home_providers.dart';
+import 'package:flutter_steam_tv/features/player/data/repository/home_catalog_playback_repository.dart';
 import 'package:flutter_steam_tv/features/player/domain/repository/playback_repository.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'player_providers.g.dart';
 
-/// The feature's composition root: the one place data implementations meet domain interfaces.
+/// The feature's composition root: the one place a data implementation meets a domain interface.
 ///
-/// `keepAlive` on both, because a catalogue lookup should not be repeated every time the player
-/// screen rebuilds, and neither holds per-screen state.
-
-/// Where playable items come from.
-@Riverpod(keepAlive: true)
-PlaybackDataSource playbackDataSource(Ref ref) => const PlaybackDummyDataSource();
-
-/// Resolves a catalogue id to something playable.
+/// `keepAlive`, because resolving a catalogue id should not repeat every time the player screen
+/// rebuilds, and this holds no per-screen state.
+///
+/// It reads Home's repository rather than a catalogue of its own — see
+/// [HomeCatalogPlaybackRepository] for why, and for what replaces it when a real API arrives.
 @Riverpod(keepAlive: true)
 PlaybackRepository playbackRepository(Ref ref) =>
-    PlaybackRepositoryImpl(dataSource: ref.watch(playbackDataSourceProvider));
+    HomeCatalogPlaybackRepository(ref.watch(homeRepositoryProvider));
