@@ -5,4 +5,19 @@ abstract final class AppAssets {
   static const String playIcon = 'assets/icons/ic_play.svg';
   static const String searchIcon = 'assets/icons/ic_search.svg';
   static const String settingsIcon = 'assets/icons/ic_settings.svg';
+
+  // region Player
+  static const String pauseIcon = 'assets/icons/ic_pause.svg';
+  static const String replay10Icon = 'assets/icons/ic_replay_10.svg';
+  static const String forward10Icon = 'assets/icons/ic_forward_10.svg';
+  static const String heartIcon = 'assets/icons/ic_heart.svg';
+  static const String heartOutlineIcon = 'assets/icons/ic_heart_outline.svg';
+  static const String bookmarkIcon = 'assets/icons/ic_bookmark.svg';
+  static const String bookmarkOutlineIcon = 'assets/icons/ic_bookmark_outline.svg';
+  static const String checkIcon = 'assets/icons/ic_player_check.svg';
+  static const String hdIcon = 'assets/icons/ic_hd.svg';
+  static const String audioIcon = 'assets/icons/ic_audio.svg';
+  static const String subtitlesIcon = 'assets/icons/ic_subtitles.svg';
+  static const String arrowBackIcon = 'assets/icons/ic_arrow_back.svg';
+  // endregion
 }
