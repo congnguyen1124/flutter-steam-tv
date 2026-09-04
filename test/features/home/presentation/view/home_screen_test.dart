@@ -19,7 +19,6 @@ void main() {
     await tester.pumpWidget(_app(state: const .data(_sections)));
     await tester.pump();
 
-    expect(find.text('Featured today'), findsOneWidget);
     expect(find.text('Opening Night'), findsOneWidget);
   });
 
@@ -52,6 +51,7 @@ void main() {
     await tester.pump();
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
 
     expect(selectedItem?.id, 'second');
@@ -65,10 +65,11 @@ Widget _app({
 }) {
   return MaterialApp(
     theme: StreamTvTheme.dark,
-    home: HomeScreen(
+    home: HomeLceView(
       state: state,
       onRetry: onRetry ?? () {},
       onItemPressed: onItemPressed ?? (_) {},
+      autoPlayBanners: false,
     ),
   );
 }
@@ -77,12 +78,13 @@ const _sections = [
   HomeSection(
     id: 'featured',
     title: 'Featured today',
+    viewType: .banner,
     items: [
       HomeItem(
         id: 'opening-night',
         title: 'Opening Night',
         description: 'Live coverage',
-        kind: .channel,
+        kind: .video,
       ),
     ],
   ),
@@ -92,6 +94,7 @@ const _focusSections = [
   HomeSection(
     id: 'focus-row',
     title: 'Focus row',
+    viewType: .videos,
     items: [
       HomeItem(
         id: 'first',

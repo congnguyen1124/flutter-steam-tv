@@ -1,5 +1,5 @@
 import 'package:flutter_steam_tv/features/calendar/presentation/view/calendar_route.dart';
-import 'package:flutter_steam_tv/features/home/presentation/view/home_route.dart';
+import 'package:flutter_steam_tv/features/home/presentation/view/home_screen.dart';
 import 'package:flutter_steam_tv/features/main/presentation/navigation/main_navigation_origin.dart';
 import 'package:flutter_steam_tv/features/main/presentation/view/main_route.dart';
 import 'package:flutter_steam_tv/features/profile/presentation/view/profile_route.dart';
@@ -13,7 +13,7 @@ part 'app_router.g.dart';
 @Riverpod(keepAlive: true)
 GoRouter appRouter(Ref ref) {
   final router = GoRouter(
-    initialLocation: HomeRoute.path,
+    initialLocation: HomeScreen.path,
     routes: [
       ShellRoute(
         builder: (_, state, child) {
@@ -21,8 +21,8 @@ GoRouter appRouter(Ref ref) {
         },
         routes: [
           GoRoute(
-            path: HomeRoute.path,
-            builder: (_, state) => HomeRoute(
+            path: HomeScreen.path,
+            builder: (_, state) => HomeScreen(
               autofocusContent: state.extra != MainNavigationOrigin.topBar,
             ),
           ),

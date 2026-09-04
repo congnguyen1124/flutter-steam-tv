@@ -56,7 +56,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
-    expect(find.text('Featured today'), findsOneWidget);
+    expect(find.text('Pulse of the court'), findsOneWidget);
     expect(tester.state(find.byType(MainScreen)), same(shellState));
     final homeButton = tester.widget<InkWell>(
       find.descendant(
@@ -65,42 +65,75 @@ void main() {
       ),
     );
     expect(homeButton.focusNode!.hasFocus, isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+
+    final homeHero = tester.widget<Focus>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Focus &&
+            widget.focusNode?.debugLabel == 'home-section:featured-stories',
+      ),
+    );
+    expect(homeHero.focusNode!.hasFocus, isTrue);
   });
 
-  testWidgets('returns from the top bar to the last focused content', (
+  testWidgets('down from top bar always enters the first content target', (
     tester,
   ) async {
     _configureTvView(tester);
     await tester.pumpWidget(const ProviderScope(child: StreamTvApp()));
     await tester.pumpAndSettle();
 
-    final firstCard = tester.widget<InkWell>(
+    final homeHero = tester.widget<Focus>(
       find.byWidgetPredicate(
         (widget) =>
-            widget is InkWell &&
-            widget.focusNode?.debugLabel == 'featured-today:opening-night',
+            widget is Focus &&
+            widget.focusNode?.debugLabel == 'home-section:featured-stories',
       ),
     );
-    expect(firstCard.focusNode!.hasFocus, isTrue);
-
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
-    await tester.pumpAndSettle();
-
-    final topBarButtons = tester.widgetList<InkWell>(
-      find.descendant(
-        of: find.byKey(const ValueKey('steam-top-bar')),
-        matching: find.byType(InkWell),
-      ),
-    );
-    expect(
-      topBarButtons.any((button) => button.focusNode?.hasFocus ?? false),
-      isTrue,
-    );
+    expect(homeHero.focusNode!.hasFocus, isTrue);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
 
-    expect(firstCard.focusNode!.hasFocus, isTrue);
+    final secondSection = tester.widget<Focus>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Focus &&
+            widget.focusNode?.debugLabel == 'home-section:videos-for-you',
+      ),
+    );
+    expect(secondSection.focusNode!.hasFocus, isTrue);
+
+    for (var index = 0; index < 4; index++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+    }
+    final verticalBanner = tester.widget<Focus>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Focus &&
+            widget.focusNode?.debugLabel == 'home-section:portrait-discovery',
+      ),
+    );
+    expect(verticalBanner.focusNode!.hasFocus, isTrue);
+
+    final homeButton = tester.widget<InkWell>(
+      find.descendant(
+        of: find.byKey(const ValueKey('steam-top-bar-item-home')),
+        matching: find.byType(InkWell),
+      ),
+    );
+    homeButton.focusNode!.requestFocus();
+    await tester.pumpAndSettle();
+    expect(homeButton.focusNode!.hasFocus, isTrue);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+
+    expect(homeHero.focusNode!.hasFocus, isTrue);
   });
 }
 

@@ -7,4 +7,6 @@ abstract final class AppAssets {
   static const String profileIcon = 'assets/icons/ic_profile.svg';
   static const String searchIcon = 'assets/icons/ic_search.svg';
   static const String settingIcon = 'assets/icons/ic_setting.svg';
+
+  static String rankImage(int rank) => 'assets/images/img_ranked_$rank.webp';
 }

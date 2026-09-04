@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_steam_tv/core/widgets/steam_top_bar.dart';
 import 'package:flutter_steam_tv/core/widgets/steam_top_bar_item.dart';
+import 'package:flutter_steam_tv/core/widgets/tv_list_view/tv_list_view.dart';
 import 'package:flutter_steam_tv/features/main/presentation/navigation/main_top_bar_items.dart';
 
 final class MainScreen extends StatefulWidget {
@@ -9,12 +10,14 @@ final class MainScreen extends StatefulWidget {
     required this.currentPath,
     required this.onNavigate,
     required this.child,
+    this.contentBehindTopBar = false,
     super.key,
   });
 
   final String currentPath;
   final ValueChanged<String> onNavigate;
   final Widget child;
+  final bool contentBehindTopBar;
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -51,7 +54,9 @@ final class _MainScreenState extends State<MainScreen> {
               child: FocusScope(
                 node: _contentFocusScopeNode,
                 child: Padding(
-                  padding: const .only(top: _contentTopInset),
+                  padding: .only(
+                    top: widget.contentBehindTopBar ? 0 : _contentTopInset,
+                  ),
                   child: widget.child,
                 ),
               ),
@@ -81,7 +86,7 @@ final class _MainScreenState extends State<MainScreen> {
                 items: MainTopBarItems.defaults,
                 selectedItemId: selectedItem.id,
                 controller: _topBarController,
-                onMoveDown: _contentFocusScopeNode.requestFocus,
+                onMoveDown: _requestContentFocus,
                 onFocusChanged: (hasFocus) {
                   if (_isTopBarFocused != hasFocus) {
                     setState(() => _isTopBarFocused = hasFocus);
@@ -111,6 +116,28 @@ final class _MainScreenState extends State<MainScreen> {
       });
       WidgetsBinding.instance.scheduleFrame();
     });
+  }
+
+  void _requestContentFocus() {
+    for (final node
+        in _contentFocusScopeNode.traversalDescendants
+            .whereType<TvListViewEntryFocusNode>()) {
+      if (node.canRequestFocus && (node.context?.mounted ?? false)) {
+        node.requestFocus();
+        return;
+      }
+    }
+
+    for (final node in _contentFocusScopeNode.traversalDescendants) {
+      if (node is FocusScopeNode ||
+          !node.canRequestFocus ||
+          node.skipTraversal ||
+          !(node.context?.mounted ?? false)) {
+        continue;
+      }
+      node.requestFocus();
+      return;
+    }
   }
 
   KeyEventResult _handleContentKeyEvent(FocusNode node, KeyEvent event) {

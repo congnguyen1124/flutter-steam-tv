@@ -2,8 +2,10 @@
 
 ## Source of truth
 
-- Treat `../android_stream_tv/spec/` as the framework-neutral product contract. Read the matching
-  spec before porting a screen or interaction.
+- Treat this project's `spec/` as the product contract. Read the matching spec before changing a
+  screen or interaction.
+- Use `../android_stream_tv/spec/` only as upstream reference when the Flutter spec has not yet
+  described a behavior, then record the chosen Flutter behavior in this project's spec.
 - Use the Android Compose project as a behavior and visual reference, not as a line-by-line template.
 - Keep all user-facing copy, accessibility labels, preview fixtures, and dummy data in English.
 
@@ -34,7 +36,8 @@
 
 ## TV presentation
 
-- Separate a Riverpod-aware `Route` from pure `Screen` and small presentation widgets.
+- Separate a Riverpod-aware `Route` from pure `Screen` and small presentation widgets by default.
+  Home is the explicit exception: `HomeScreen` is its feature boundary and there is no `HomeRoute`.
 - Split a widget when it owns more than one layout responsibility or its state/focus behavior can be
   tested independently. Keep screen files orchestration-focused; avoid large private-widget piles.
 - Every new or materially changed screen/widget needs deterministic `@Preview` coverage. Screen
