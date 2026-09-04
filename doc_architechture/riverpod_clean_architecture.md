@@ -99,7 +99,7 @@ Luồng khởi tạo Home:
 
 ```mermaid
 sequenceDiagram
-    participant V as HomeRoute
+    participant V as HomeScreen
     participant P as homeViewModelProvider
     participant VM as HomeViewModel
     participant R as HomeRepository

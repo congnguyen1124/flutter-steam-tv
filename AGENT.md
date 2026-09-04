@@ -2,25 +2,12 @@
 
 ## Source of truth
 
-- Treat `../android_stream_tv/spec/` as the framework-neutral product contract. Read the matching
-  spec before porting a screen or interaction.
+- Treat this project's `spec/` as the product contract. Read the matching spec before changing a
+  screen or interaction.
+- Use `../android_stream_tv/spec/` only as upstream reference when the Flutter spec has not yet
+  described a behavior, then record the chosen Flutter behavior in this project's spec.
 - Use the Android Compose project as a behavior and visual reference, not as a line-by-line template.
 - Keep all user-facing copy, accessibility labels, preview fixtures, and dummy data in English.
-
-## Playback
-
-- Never talk to a native player directly. All playback goes through `stream_player`
-  (`../flutter_stream_player/`): commands in, one `StreamPlayerState` out.
-- Read [`doc_architechture/native_player_bridge.md`](doc_architechture/native_player_bridge.md)
-  before changing anything in `features/player/` or in the bridge packages.
-- Gate every playback control on `controller.capabilities`. A command a host cannot honour is a
-  documented no-op, so an ungated control renders as a button that does nothing on Tizen.
-- `StreamPlayerController.close()` is mandatory, from `ref.onDispose`. A leaked player holds a
-  hardware decoder.
-- Changing the channel vocabulary means changing `stream_player_channels.dart` **and**
-  `StreamPlayerWire.kt` in the same commit. Neither compiler can see the other.
-- Publish the Android engine before an Android build:
-  `cd ../android_stream_player && ./gradlew :stream-player:publishToMavenLocal`.
 
 ## Architecture
 
@@ -49,7 +36,8 @@
 
 ## TV presentation
 
-- Separate a Riverpod-aware `Route` from pure `Screen` and small presentation widgets.
+- Separate a Riverpod-aware `Route` from pure `Screen` and small presentation widgets by default.
+  Home is the explicit exception: `HomeScreen` is its feature boundary and there is no `HomeRoute`.
 - Split a widget when it owns more than one layout responsibility or its state/focus behavior can be
   tested independently. Keep screen files orchestration-focused; avoid large private-widget piles.
 - Every new or materially changed screen/widget needs deterministic `@Preview` coverage. Screen

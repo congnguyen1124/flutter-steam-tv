@@ -1,10 +1,13 @@
 abstract final class AppAssets {
+  static const String appLogo = 'assets/images/img_logo_app.webp';
   static const String appsIcon = 'assets/icons/ic_apps.svg';
   static const String calendarIcon = 'assets/icons/ic_calendar.svg';
   static const String homeIcon = 'assets/icons/ic_home.svg';
   static const String playIcon = 'assets/icons/ic_play.svg';
+  static const String profileIcon = 'assets/icons/ic_profile.svg';
   static const String searchIcon = 'assets/icons/ic_search.svg';
   static const String settingsIcon = 'assets/icons/ic_settings.svg';
+  static const String settingIcon = 'assets/icons/ic_setting.svg';
 
   // region Player
   static const String pauseIcon = 'assets/icons/ic_pause.svg';
@@ -20,4 +23,5 @@ abstract final class AppAssets {
   static const String subtitlesIcon = 'assets/icons/ic_subtitles.svg';
   static const String arrowBackIcon = 'assets/icons/ic_arrow_back.svg';
   // endregion
+  static String rankImage(int rank) => 'assets/images/img_ranked_$rank.webp';
 }

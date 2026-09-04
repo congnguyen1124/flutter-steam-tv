@@ -9,6 +9,7 @@ abstract class HomeSectionDto with _$HomeSectionDto {
   const factory HomeSectionDto({
     required String id,
     required String title,
+    required String viewType,
     required List<HomeItemDto> items,
   }) = _HomeSectionDto;
 
