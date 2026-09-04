@@ -3,29 +3,48 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_steam_tv/core/assets/app_assets.dart';
 import 'package:flutter_steam_tv/core/design_system/stream_tv_colors.dart';
+import 'package:flutter_steam_tv/core/widgets/steam_top_bar_destination_button.dart';
 import 'package:flutter_steam_tv/core/widgets/steam_top_bar_item.dart';
-import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_steam_tv/core/widgets/steam_top_bar_profile_button.dart';
 
 final class SteamTopBar extends StatefulWidget {
   const SteamTopBar({
     required this.items,
     required this.selectedItemId,
     required this.onItemPressed,
+    this.controller,
     this.onFocusChanged,
+    this.onMoveDown,
     this.showScrim = true,
     super.key,
   });
 
-  static const double height = 92;
+  static const double height = 80;
 
   final List<SteamTopBarItem> items;
   final String? selectedItemId;
   final ValueChanged<SteamTopBarItem> onItemPressed;
+  final SteamTopBarController? controller;
   final ValueChanged<bool>? onFocusChanged;
+  final VoidCallback? onMoveDown;
   final bool showScrim;
 
   @override
   State<SteamTopBar> createState() => _SteamTopBarState();
+}
+
+final class SteamTopBarController {
+  ValueChanged<String?>? _requestFocusCallback;
+
+  void requestFocus([String? itemId]) => _requestFocusCallback?.call(itemId);
+
+  void _attach(ValueChanged<String?> requestFocus) {
+    _requestFocusCallback = requestFocus;
+  }
+
+  void _detach() {
+    _requestFocusCallback = null;
+  }
 }
 
 final class _SteamTopBarState extends State<SteamTopBar> {
@@ -41,8 +60,18 @@ final class _SteamTopBarState extends State<SteamTopBar> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    widget.controller?._attach(_requestFocus);
+  }
+
+  @override
   void didUpdateWidget(SteamTopBar oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?._detach();
+      widget.controller?._attach(_requestFocus);
+    }
     final oldIds = oldWidget.items.map((item) => item.id).toSet();
     final newIds = widget.items.map((item) => item.id).toSet();
     if (!setEquals(oldIds, newIds)) {
@@ -54,6 +83,7 @@ final class _SteamTopBarState extends State<SteamTopBar> {
 
   @override
   void dispose() {
+    widget.controller?._detach();
     _disposeFocusNodes();
     super.dispose();
   }
@@ -117,27 +147,27 @@ final class _SteamTopBarState extends State<SteamTopBar> {
     final isFocused = item.id == _focusedItemId;
     return Padding(
       padding: const .symmetric(horizontal: 3),
-      child: _SteamDestinationButton(
+      child: SteamTopBarDestinationButton(
         key: ValueKey('steam-top-bar-item-${item.id}'),
         item: item,
         focusNode: _focusNodes[item.id]!,
         isFocused: isFocused,
         isSelected: item.id == widget.selectedItemId,
         onFocusChanged: (hasFocus) => _setItemFocus(item.id, hasFocus),
-        onKeyEvent: (_, event) => _handleHorizontalKey(item, event),
+        onKeyEvent: (_, event) => _handleNavigationKey(item, event),
         onPressed: () => widget.onItemPressed(item),
       ),
     );
   }
 
   Widget _buildProfile(SteamTopBarItem item) {
-    return _SteamProfileButton(
+    return SteamTopBarProfileButton(
       key: ValueKey('steam-top-bar-item-${item.id}'),
       item: item,
       focusNode: _focusNodes[item.id]!,
       isSelected: item.id == widget.selectedItemId,
       onFocusChanged: (hasFocus) => _setItemFocus(item.id, hasFocus),
-      onKeyEvent: (_, event) => _handleHorizontalKey(item, event),
+      onKeyEvent: (_, event) => _handleNavigationKey(item, event),
       onPressed: () => widget.onItemPressed(item),
     );
   }
@@ -150,9 +180,30 @@ final class _SteamTopBarState extends State<SteamTopBar> {
     }
   }
 
-  KeyEventResult _handleHorizontalKey(SteamTopBarItem item, KeyEvent event) {
+  void _requestFocus(String? itemId) {
+    if (_visibleItems.isEmpty) {
+      return;
+    }
+    final selectedItemId = itemId ?? widget.selectedItemId;
+    final targetItem = _visibleItems.firstWhere(
+      (item) => item.id == selectedItemId,
+      orElse: () => _visibleItems.first,
+    );
+    _focusNodes[targetItem.id]?.requestFocus();
+  }
+
+  KeyEventResult _handleNavigationKey(SteamTopBarItem item, KeyEvent event) {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return .ignored;
+    }
+
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      final onMoveDown = widget.onMoveDown;
+      if (onMoveDown == null) {
+        return .ignored;
+      }
+      onMoveDown();
+      return .handled;
     }
 
     final offset = switch (event.logicalKey) {
@@ -183,172 +234,5 @@ final class _SteamTopBarState extends State<SteamTopBar> {
     for (final focusNode in _focusNodes.values) {
       focusNode.dispose();
     }
-  }
-}
-
-final class _SteamDestinationButton extends StatelessWidget {
-  const _SteamDestinationButton({
-    required this.item,
-    required this.focusNode,
-    required this.isFocused,
-    required this.isSelected,
-    required this.onFocusChanged,
-    required this.onKeyEvent,
-    required this.onPressed,
-    super.key,
-  });
-
-  final SteamTopBarItem item;
-  final FocusNode focusNode;
-  final bool isFocused;
-  final bool isSelected;
-  final ValueChanged<bool> onFocusChanged;
-  final FocusOnKeyEventCallback onKeyEvent;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final foregroundColor = isFocused
-        ? colorScheme.onPrimary
-        : isSelected
-        ? colorScheme.primary
-        : colorScheme.onSurface;
-
-    return Focus(
-      canRequestFocus: false,
-      onKeyEvent: onKeyEvent,
-      child: Semantics(
-        button: true,
-        selected: isSelected,
-        label: item.label,
-        child: InkWell(
-          focusNode: focusNode,
-          onFocusChange: onFocusChanged,
-          onTap: onPressed,
-          borderRadius: .circular(40),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            padding: const .all(8),
-            decoration: BoxDecoration(
-              color: isFocused
-                  ? colorScheme.primary
-                  : isSelected
-                  ? colorScheme.primary.withValues(alpha: 0.16)
-                  : Colors.transparent,
-              border: Border.all(
-                color: isSelected && !isFocused
-                    ? colorScheme.primary.withValues(alpha: 0.36)
-                    : Colors.transparent,
-              ),
-              borderRadius: .circular(40),
-            ),
-            child: Row(
-              mainAxisSize: .min,
-              children: [
-                SvgPicture.asset(
-                  item.iconAsset,
-                  width: 20,
-                  height: 20,
-                  colorFilter: ColorFilter.mode(
-                    foregroundColor,
-                    BlendMode.srcIn,
-                  ),
-                ),
-                ClipRect(
-                  child: AnimatedSize(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOut,
-                    alignment: .centerLeft,
-                    child: isFocused
-                        ? Padding(
-                            padding: const .only(left: 8, right: 6),
-                            child: Text(
-                              item.label,
-                              style: TextStyle(
-                                color: foregroundColor,
-                                fontSize: 14,
-                                fontWeight: .w500,
-                              ),
-                            ),
-                          )
-                        : const SizedBox.shrink(),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-final class _SteamProfileButton extends StatelessWidget {
-  const _SteamProfileButton({
-    required this.item,
-    required this.focusNode,
-    required this.isSelected,
-    required this.onFocusChanged,
-    required this.onKeyEvent,
-    required this.onPressed,
-    super.key,
-  });
-
-  final SteamTopBarItem item;
-  final FocusNode focusNode;
-  final bool isSelected;
-  final ValueChanged<bool> onFocusChanged;
-  final FocusOnKeyEventCallback onKeyEvent;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Focus(
-      canRequestFocus: false,
-      onKeyEvent: onKeyEvent,
-      child: Semantics(
-        button: true,
-        selected: isSelected,
-        label: item.label,
-        child: InkWell(
-          focusNode: focusNode,
-          onFocusChange: onFocusChanged,
-          onTap: onPressed,
-          customBorder: const CircleBorder(),
-          child: AnimatedContainer(
-            width: 38,
-            height: 38,
-            duration: const Duration(milliseconds: 150),
-            padding: const .all(8),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? colorScheme.primary.withValues(alpha: 0.16)
-                  : Colors.transparent,
-              border: Border.all(
-                color: focusNode.hasFocus
-                    ? colorScheme.primary
-                    : isSelected
-                    ? colorScheme.primary.withValues(alpha: 0.36)
-                    : Colors.transparent,
-                width: 2,
-              ),
-              shape: .circle,
-            ),
-            child: SvgPicture.asset(
-              item.iconAsset,
-              colorFilter: ColorFilter.mode(
-                focusNode.hasFocus || isSelected
-                    ? colorScheme.primary
-                    : StreamTvColors.onSurfaceMuted,
-                BlendMode.srcIn,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
   }
 }

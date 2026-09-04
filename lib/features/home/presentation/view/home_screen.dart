@@ -11,18 +11,21 @@ final class HomeScreen extends StatelessWidget {
     required this.state,
     required this.onRetry,
     required this.onItemPressed,
+    this.autofocusContent = true,
     super.key,
   });
 
   final AsyncValue<List<HomeSection>> state;
   final VoidCallback onRetry;
   final ValueChanged<HomeItem> onItemPressed;
+  final bool autofocusContent;
 
   @override
   Widget build(BuildContext context) {
     final content = switch (state) {
       AsyncData(:final value) => HomeContentView(
         sections: value,
+        autofocusContent: autofocusContent,
         onItemPressed: onItemPressed,
       ),
       AsyncError(:final error) => HomeErrorView(

@@ -6,11 +6,13 @@ import 'package:flutter_steam_tv/features/home/presentation/widget/home_section_
 final class HomeContentView extends StatelessWidget {
   const HomeContentView({
     required this.sections,
+    required this.autofocusContent,
     required this.onItemPressed,
     super.key,
   });
 
   final List<HomeSection> sections;
+  final bool autofocusContent;
   final ValueChanged<HomeItem> onItemPressed;
 
   @override
@@ -26,7 +28,7 @@ final class HomeContentView extends StatelessWidget {
       itemBuilder: (context, sectionIndex) {
         return HomeSectionRow(
           section: sections[sectionIndex],
-          autofocusFirstItem: sectionIndex == 0,
+          autofocusFirstItem: autofocusContent && sectionIndex == 0,
           onItemPressed: onItemPressed,
         );
       },

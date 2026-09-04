@@ -1,5 +1,6 @@
 import 'package:flutter_steam_tv/features/calendar/presentation/view/calendar_route.dart';
 import 'package:flutter_steam_tv/features/home/presentation/view/home_route.dart';
+import 'package:flutter_steam_tv/features/main/presentation/navigation/main_navigation_origin.dart';
 import 'package:flutter_steam_tv/features/main/presentation/view/main_route.dart';
 import 'package:flutter_steam_tv/features/profile/presentation/view/profile_route.dart';
 import 'package:flutter_steam_tv/features/search/presentation/view/search_route.dart';
@@ -19,7 +20,12 @@ GoRouter appRouter(Ref ref) {
           return MainRoute(currentPath: state.uri.path, child: child);
         },
         routes: [
-          GoRoute(path: HomeRoute.path, builder: (_, _) => const HomeRoute()),
+          GoRoute(
+            path: HomeRoute.path,
+            builder: (_, state) => HomeRoute(
+              autofocusContent: state.extra != MainNavigationOrigin.topBar,
+            ),
+          ),
           GoRoute(
             path: SearchRoute.path,
             builder: (_, _) => const SearchRoute(),

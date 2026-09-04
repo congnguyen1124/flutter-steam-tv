@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_steam_tv/core/widgets/steam_top_bar.dart';
+import 'package:flutter_steam_tv/core/widgets/steam_top_bar_item.dart';
 import 'package:flutter_steam_tv/features/main/presentation/navigation/main_top_bar_items.dart';
 
 final class MainScreen extends StatefulWidget {
@@ -20,9 +22,19 @@ final class MainScreen extends StatefulWidget {
 
 final class _MainScreenState extends State<MainScreen> {
   static const Duration _overlayDuration = Duration(milliseconds: 160);
-  static const double _contentTopInset = 78;
+  static const double _contentTopInset = SteamTopBar.height;
 
+  late final FocusScopeNode _contentFocusScopeNode = FocusScopeNode(
+    debugLabel: 'main-content',
+  );
+  final SteamTopBarController _topBarController = SteamTopBarController();
   bool _isTopBarFocused = false;
+
+  @override
+  void dispose() {
+    _contentFocusScopeNode.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,9 +45,16 @@ final class _MainScreenState extends State<MainScreen> {
         fit: .expand,
         children: [
           Positioned.fill(
-            child: Padding(
-              padding: const .only(top: _contentTopInset),
-              child: widget.child,
+            child: Focus(
+              canRequestFocus: false,
+              onKeyEvent: _handleContentKeyEvent,
+              child: FocusScope(
+                node: _contentFocusScopeNode,
+                child: Padding(
+                  padding: const .only(top: _contentTopInset),
+                  child: widget.child,
+                ),
+              ),
             ),
           ),
           Positioned.fill(
@@ -58,24 +77,54 @@ final class _MainScreenState extends State<MainScreen> {
             child: SafeArea(
               bottom: false,
               child: SteamTopBar(
+                key: const ValueKey('steam-top-bar'),
                 items: MainTopBarItems.defaults,
                 selectedItemId: selectedItem.id,
+                controller: _topBarController,
+                onMoveDown: _contentFocusScopeNode.requestFocus,
                 onFocusChanged: (hasFocus) {
                   if (_isTopBarFocused != hasFocus) {
                     setState(() => _isTopBarFocused = hasFocus);
                   }
                 },
-                onItemPressed: (item) {
-                  final path = MainTopBarItems.pathFor(item);
-                  if (path != widget.currentPath) {
-                    widget.onNavigate(path);
-                  }
-                },
+                onItemPressed: _navigateFromTopBar,
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  void _navigateFromTopBar(SteamTopBarItem item) {
+    final path = MainTopBarItems.pathFor(item);
+    if (path == widget.currentPath) {
+      return;
+    }
+
+    widget.onNavigate(path);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _topBarController.requestFocus(item.id);
+        }
+      });
+      WidgetsBinding.instance.scheduleFrame();
+    });
+  }
+
+  KeyEventResult _handleContentKeyEvent(FocusNode node, KeyEvent event) {
+    if ((event is! KeyDownEvent && event is! KeyRepeatEvent) ||
+        event.logicalKey != LogicalKeyboardKey.arrowUp) {
+      return .ignored;
+    }
+
+    final primaryFocus = FocusManager.instance.primaryFocus;
+    if (primaryFocus?.focusInDirection(.up) ?? false) {
+      return .handled;
+    }
+
+    _topBarController.requestFocus();
+    return .handled;
   }
 }
