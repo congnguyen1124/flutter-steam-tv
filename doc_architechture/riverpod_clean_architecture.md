@@ -7,6 +7,10 @@ Tài liệu này là quy ước nền cho `flutter_steam_tv`. Mục tiêu là po
 > `doc_architechture` giữ nguyên tên thư mục theo yêu cầu ban đầu. Khi thêm tài liệu mới,
 > tiếp tục dùng thư mục này để tránh tạo hai nơi lưu kiến trúc.
 
+Riêng phần phát video có tài liệu riêng: [`native_player_bridge.md`](native_player_bridge.md) mô tả
+cầu nối tới player native (Media3 trên Android TV, Tizen media player trên Samsung TV) và feature
+`player` được dựng trên nó.
+
 ## Hình dung tổng thể
 
 ```mermaid
