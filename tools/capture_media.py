@@ -366,9 +366,13 @@ CAPTURES: dict[str, Capture] = {
     ),
     "vertical-player": Capture(
         name="vertical-player",
-        description="Portrait stage and interaction panel",
-        setup=["sleep:3"] + ["DPAD_DOWN"] * 6 + ["DPAD_CENTER"],
-        steps=["sleep:18"],
+        description="Portrait stage and interaction panel, focus border at full strength",
+        setup=["sleep:3"] + ["DPAD_DOWN"] * 6 + ["DPAD_CENTER", "sleep:18"],
+        # Two Selects, not none. The stage's focus border is bright for two seconds and then fades
+        # to a faint outline, so by the time the stream has loaded the border has already settled
+        # and a still taken here would not show that the stage is a focus target at all. A Select
+        # restarts that cycle; the second one puts playback back where the first found it.
+        steps=["DPAD_CENTER", "DPAD_CENTER"],
         settle=8.0,
     ),
     "vertical-player-metadata": Capture(

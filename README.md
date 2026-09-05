@@ -275,12 +275,12 @@ composed beneath its child, so a parent keeps its list state.
 <td><img src="docs/images/player-settings-section-android.webp" alt="Settings section on Android TV"></td>
 <td align="center"><strong>Not applicable on Tizen</strong> — see below</td>
 </tr>
-<tr><td colspan="2"><em><strong>Settings</strong> — one row per category. Settings never shows an empty category, and a category with a single option is dropped: on a remote it costs three presses to learn it could not have been anything else. This stream carries no subtitles and no alternative audio, so the root panel holds a single Quality row.</em></td></tr>
+<tr><td colspan="2"><em><strong>Settings</strong> — one row per category: an icon, the category name, and <strong>the value in effect stacked underneath it</strong> rather than trailing it, because a long rendition label ellipsises away at this panel width and the value is the half the viewer opened the panel to check. The chevron is what tells a category row apart from an option row at a glance — one opens a list, the other commits a choice, and a remote has no hover state to disambiguate them. Settings never shows an empty category, and a category with a single option is dropped: on a remote it costs three presses to learn it could not have been anything else. This stream carries no subtitles and no alternative audio, so the root panel holds a single Quality row.</em></td></tr>
 <tr>
 <td><img src="docs/images/player-quality-section-android.webp" alt="Quality section on Android TV"></td>
 <td align="center"><strong>Not applicable on Tizen</strong> — see below</td>
 </tr>
-<tr><td colspan="2"><em><strong>Settings → Quality</strong> — the rendition list read straight from the manifest, with <code>Auto</code> selected because nothing has been pinned. The settings list is still composed underneath rather than replaced, so returning to it keeps its scroll position and selected row.</em></td></tr>
+<tr><td colspan="2"><em><strong>Settings → Quality</strong> — the rendition list read straight from the manifest, with <code>Auto</code> ticked because nothing has been pinned. A focused row inverts to a white fill; the row holding the value in effect keeps a faint fill and a hairline once focus moves off it, because at three metres the tick alone is easy to miss and it is the only other signal. The settings list stays composed underneath rather than being replaced, so returning to it keeps its scroll position and selected row.</em></td></tr>
 </table>
 
 **Why two cells say "not applicable" rather than waiting for a screenshot.** The Tizen host reports
@@ -306,8 +306,20 @@ nudged toward the leading edge, and **gives the freed width back to the content 
 </table>
 
 *Three regions: a horizontal ambient gradient, a rounded 9:16 stage (the video crops to fill it, so no
-bars appear inside the stage), and the interaction panel on the trailing edge. The stage is a real
-focus target, not a passive surface — Select on it toggles playback.*
+bars appear inside the stage), and the interaction panel on the trailing edge.*
+
+The stage is **centred on the panel and then nudged toward the leading edge**, not aligned to it.
+Pinning it left is the obvious reading of "leave room for the panel" and it is wrong: it strands the
+portrait frame against the bezel with the whole gradient trailing off to one side. Centring keeps the
+video where a viewer several metres back is already looking, and the offset still opens a column for
+the panel.
+
+It is also a real focus target, not a passive surface — Select on it toggles playback — so it carries
+an inset focus border. The border **announces focus at full white and then softens** over the
+following second to a faint outline. The stage holds focus for most of a viewing session, and a
+permanent 6-unit white frame around every short is louder than the content it is framing; a Select
+press restarts the cycle, because a press is when the viewer wants confirming they were aiming at the
+right thing.
 
 This screen has **no** transport cluster, no seek bar, no `Description` pill and no caption under its
 controls. The stage itself is the play/pause control, and the title block is the way into metadata.

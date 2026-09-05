@@ -205,6 +205,25 @@ nhịp thong thả cho điều hướng Home, còn `steps` đôi khi cần nhanh
 
 ---
 
+## 5b. Bẫy thứ hai: viền focus của stage dọc tự mờ đi
+
+Stage của player dọc là focus target thật, và viền focus của nó **sáng trắng 2 giây rồi mờ dần trong
+1 giây** xuống một đường viền nhạt (`playerFocusBorderSoftened`). Đây là hành vi cố ý — stage giữ
+focus gần như suốt phiên xem, để viền trắng 6dp đứng nguyên thì cả màn hình lúc nào cũng bị đóng
+khung.
+
+Hệ quả cho việc chụp: capture `vertical-player` có `sleep:18` chờ stream load, mà 18 giây thì viền đã
+mờ từ lâu. Một tấm ảnh chụp ngay lúc đó **không cho thấy stage là focus target** — nhìn như một cái
+khung tĩnh.
+
+Cách xử lý đang dùng: kết thúc `steps` bằng **`DPAD_CENTER` ×2**. Select khởi động lại chu kỳ viền,
+và lần bấm thứ hai trả playback về đúng trạng thái lần đầu tìm thấy. Ảnh chụp ~1.6s sau đó, vẫn nằm
+trong 2 giây viền sáng.
+
+Chỉ Select mới khởi động lại chu kỳ — `LEFT`/`UP`/`DOWN` trên stage bị nuốt và không đụng tới nó.
+
+---
+
 ## 6. Danh sách capture hiện có
 
 | Tên capture | Loại | Nội dung | Đường vào (sau khi mở app) |
@@ -227,7 +246,7 @@ nhịp thong thả cho điều hướng Home, còn `steps` đôi khi cần nhanh
 | `player-settings-section` | shot | Danh sách Settings | ↑ rồi `PARK_ON(RIGHT)`, `RECALL`, `CENTER` |
 | `player-quality-section` | shot | Panel Quality chồng lên Settings | ↑ rồi `PARK_ON(RIGHT)`, `RECALL`, `CENTER` ×2 |
 | `player-focus-restore` | **gif** | Chrome quay lại nút cũ → seek bar → về lại | ↑ rồi `PARK_ON(RIGHT)`, `RECALL`, `UP`, `DOWN` |
-| `vertical-player` | shot | Stage 9:16 + interaction panel | `DOWN` ×6, `CENTER`, chờ 18s |
+| `vertical-player` | shot | Stage 9:16 + interaction panel, viền focus sáng | `DOWN` ×6, `CENTER`, chờ 18s, rồi `CENTER` ×2 |
 | `vertical-player-metadata` | shot | Section trong suốt trên nền ambient | ↑ rồi `RIGHT`, `UP`, `CENTER` |
 | `vertical-player-panel` | **gif** | Stage → panel → dịch trong action row | ↑ rồi `RIGHT`, `UP`, `DOWN`, `RIGHT`, `LEFT` |
 
@@ -248,6 +267,8 @@ của [`tools/capture_media.py`](tools/capture_media.py).
 | `widget/player_seek_bar.dart` | `player-controller`, `player-focus-restore` |
 | `view/player_screen.dart` | `player-surface`, `player-controller`, `player-focus-restore`, cả 3 section shot ngang |
 | `view/vertical_player_screen.dart`, `widget/vertical_player_stage.dart`, `vertical_player_interaction_panel.dart`, `vertical_player_ambient_background.dart` | `vertical-player`, `vertical-player-panel`, `vertical-player-metadata` |
+| `widget/player_section_panel.dart` — hàng Settings | `player-settings-section`, `player-quality-section` |
+| `widget/player_section_host.dart` — header panel | cả 4 section shot (hai orientation) |
 | `widget/player_section_panel.dart` | cả 4 section shot (hai orientation) |
 | `widget/player_section_host.dart`, `player_animated_section.dart`, `player_parked_focus_target.dart` | cả 4 section shot (hai orientation) |
 | `model/player_section_stack.dart`, `player_focus_owner.dart` | cả 4 section shot **và** `player-focus-restore` |
@@ -341,6 +362,8 @@ PY
 | Player ra frame đen hoặc đang buffer | Chưa chờ stream render xong | `sleep:16` cho player ngang, `sleep:18` cho player dọc |
 | Panel Settings chỉ có một dòng | Đúng như thiết kế — stream này không có phụ đề/audio thay thế, và Settings bỏ category có dưới hai lựa chọn | Không phải lỗi. Bấm `CENTER` thêm một lần để vào danh sách Quality |
 | Vào nhầm màn | Đếm sai `DPAD_DOWN`, hoặc thứ tự section/TopBar đã đổi | Đối chiếu hai bảng thứ tự ở mục 4 |
+| Stage dọc không thấy viền focus | Viền sáng 2s rồi mờ, mà `sleep:18` đã trôi qua từ lâu | Xem mục 5b — kết thúc `steps` bằng `CENTER` ×2 |
+| Stage dọc nằm sát mép trái | Layout cũ dùng `Row` + `SizedBox(48)`. Bản đúng là **căn giữa rồi dịch trái 24** như `VerticalPlayerScreen.kt` của ottclouds | Đã sửa; test `stage placement` giữ đúng vị trí này |
 | GIF quá nặng | `duration` dài, hoặc nền là video đang chạy nên mọi frame đều khác nhau | Rút ngắn `duration`, bớt `steps` |
 | `flutter: command not found` | Flutter ở `~/flutter`, không nằm trên PATH mặc định | `export PATH="$HOME/flutter/bin:$PATH"` |
 | Emulator không tải được stream dù ping được | TLS của emulator hỏng sau khi chạy lâu | `adb reboot`, chờ boot xong rồi chụp lại |
