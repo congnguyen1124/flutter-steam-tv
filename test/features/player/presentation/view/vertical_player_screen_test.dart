@@ -97,6 +97,23 @@ void main() {
       // The asymmetry that keeps a viewer from falling out of the panel halfway along the row.
       expect(focused(), 'vertical-player-like');
     });
+
+    testWidgets('left from the stage never reaches the parked anchor', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true)));
+      await tester.pumpAndSettle();
+
+      // `spec/vertical-player.md`: there is nothing to the left of the stage, so Left must do
+      // nothing. The parked anchor lives at the screen's leading edge and would otherwise be
+      // exactly what directional traversal finds — and it swallows every key it receives.
+      for (var press = 0; press < 3; press++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+        await tester.pumpAndSettle();
+      }
+
+      expect(focused(), 'vertical-player-stage');
+    });
   });
 
   group('stage chrome', () {

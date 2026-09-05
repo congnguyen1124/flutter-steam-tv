@@ -161,6 +161,26 @@ void main() {
       expect(forwards, 1);
       expect(focusedControl(), 'player-progress');
     });
+
+    testWidgets('left from the leading control never reaches the parked anchor', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true)));
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+
+      // Past the leading end of the row on purpose. The anchor is always composed and sits at the
+      // screen's leading edge, so without `skipTraversal` it is what directional traversal finds
+      // here — and because it swallows every key and the screen does not model being parked outside
+      // a transition, the controller would come back visible and unfocused, dead to the remote.
+      for (var press = 0; press < 4; press++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+        await tester.pumpAndSettle();
+      }
+
+      expect(focusedControl(), 'player-description');
+      expect(focusedControl(), isNot('player-parked'));
+    });
   });
 
   group('sections', () {
