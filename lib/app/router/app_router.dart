@@ -3,6 +3,7 @@ import 'package:flutter_steam_tv/features/home/presentation/view/home_screen.dar
 import 'package:flutter_steam_tv/features/main/presentation/navigation/main_navigation_origin.dart';
 import 'package:flutter_steam_tv/features/main/presentation/view/main_route.dart';
 import 'package:flutter_steam_tv/features/player/presentation/view/player_route.dart';
+import 'package:flutter_steam_tv/features/player/presentation/view/vertical_player_route.dart';
 import 'package:flutter_steam_tv/features/profile/presentation/view/profile_route.dart';
 import 'package:flutter_steam_tv/features/search/presentation/view/search_route.dart';
 import 'package:flutter_steam_tv/features/setting/presentation/view/setting_route.dart';
@@ -51,6 +52,14 @@ GoRouter appRouter(Ref ref) {
         path: PlayerRoute.path,
         builder: (_, state) =>
             PlayerRoute(itemId: state.pathParameters['itemId'] ?? ''),
+      ),
+      // Declared before the landscape route would have matched it, and on its own path rather than
+      // a query flag: which player a viewer lands in is a property of the content, so a shared
+      // portrait link has to open the portrait player without the sender remembering to say so.
+      GoRoute(
+        path: VerticalPlayerRoute.path,
+        builder: (_, state) =>
+            VerticalPlayerRoute(itemId: state.pathParameters['itemId'] ?? ''),
       ),
     ],
   );

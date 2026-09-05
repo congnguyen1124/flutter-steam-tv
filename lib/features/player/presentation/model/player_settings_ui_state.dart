@@ -29,6 +29,19 @@ final class PlayerSettingCategory {
 
   /// The options, in the order they are shown.
   final List<PlayerSettingOption> options;
+
+  /// The label of the option in effect, shown on the collapsed row in the settings list.
+  ///
+  /// Falls back to the first option rather than to an empty string: a row reading "Quality" with
+  /// nothing after it looks like a failure to load, when it actually means adaptive selection.
+  String get selectedLabel {
+    for (final option in options) {
+      if (option.isSelected) {
+        return option.label;
+      }
+    }
+    return options.isEmpty ? '' : options.first.label;
+  }
 }
 
 /// The settings a player can offer.

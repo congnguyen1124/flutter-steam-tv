@@ -51,7 +51,7 @@ final class PlayerRoute extends ConsumerWidget {
       // A failure here is a catalogue or player-creation failure, not a playback one: playback
       // failures arrive inside the state and are drawn by the screen's own error panel, over the
       // video, with the title still visible.
-      AsyncError(:final error) => _PlayerStartupError(
+      AsyncError(:final error) => PlayerStartupError(
         message: _messageFor(error),
         onRetry: () => ref.invalidate(playerViewModelProvider(itemId)),
         onExit: () => _exit(context),
@@ -101,15 +101,26 @@ final class _PlayerStartup extends StatelessWidget {
   );
 }
 
-final class _PlayerStartupError extends StatelessWidget {
-  const _PlayerStartupError({
+/// Shown when the item or the player could not be created at all.
+///
+/// Distinct from `PlayerErrorPanel`, which draws a *playback* failure over the video with the title
+/// still visible. There is nothing to draw over here — the player was never built.
+final class PlayerStartupError extends StatelessWidget {
+  /// The startup-error screen.
+  const PlayerStartupError({
     required this.message,
     required this.onRetry,
     required this.onExit,
+    super.key,
   });
 
+  /// What the viewer reads.
   final String message;
+
+  /// Try resolving the item and building the player again.
   final VoidCallback onRetry;
+
+  /// Leave the player.
   final VoidCallback onExit;
 
   @override

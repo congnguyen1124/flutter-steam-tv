@@ -9,7 +9,8 @@ Tài liệu này là quy ước nền cho `flutter_steam_tv`. Mục tiêu là po
 
 Riêng phần phát video có tài liệu riêng: [`native_player_bridge.md`](native_player_bridge.md) mô tả
 cầu nối tới player native (Media3 trên Android TV, Tizen media player trên Samsung TV) và feature
-`player` được dựng trên nó.
+`player` được dựng trên nó; [`player_sections.md`](player_sections.md) mô tả state machine section
+mà cả hai màn player — ngang và dọc — dùng chung.
 
 ## Hình dung tổng thể
 
