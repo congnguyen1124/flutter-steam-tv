@@ -103,8 +103,8 @@ cd ../android_stream_player && ./gradlew :stream-player:publishToMavenLocal
 
 ### Cấu hình Android bắt buộc
 
-Tất cả đều là yêu cầu của **engine**, không phải của plugin, và mỗi cái fail bằng một thông báo khác
-nhau. `android/` đã áp dụng đủ; app khác muốn dùng bridge này cần cả năm.
+Tất cả đều là yêu cầu của **engine** hoặc toolchain của bridge, và mỗi cái fail bằng một thông báo
+khác nhau. `android/` đã áp dụng đủ; app khác muốn dùng bridge này cần cả sáu.
 
 | Cấu hình | Giá trị | Vì sao |
 |---|---|---|
@@ -112,10 +112,20 @@ nhau. `android/` đã áp dụng đủ; app khác muốn dùng bridge này cần
 | `minSdk` | **26** | Sàn của engine. Fail ở manifest merger, không phải lúc compile. |
 | AGP | **≥ 9.1.0** (dùng 9.3.2 cho khớp engine) | Media3 1.11, Compose 1.12, core-ktx 1.19 đều từ chối AGP dưới 9.1.0. |
 | Gradle wrapper | **≥ 9.5.0** (dùng 9.7.1 cho khớp engine) | AGP 9.3.2 yêu cầu. |
+| Built-in Kotlin | `android.builtInKotlin=true`, không apply `org.jetbrains.kotlin.android` | AGP 9 cung cấp Kotlin trực tiếp. Flutter 3.47+ hỗ trợ chế độ này sau khi mọi plugin Android đã migrate. |
 | Core library desugaring | **bật**, kèm `coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")` | `media3-exoplayer-ima` và `interactivemedia` khai báo trong AAR metadata. Cần **kể cả khi tắt quảng cáo** — engine vẫn kéo chúng vào. |
 
 Chọn đúng phiên bản AGP/Gradle của engine thay vì lấy mức tối thiểu, để cả hai đầu cầu chỉ có **một**
 phiên bản phải giữ đồng bộ.
+
+Engine và plugin Android cũng phải biên dịch bằng Kotlin `2.2.10`, là compiler được AGP 9.3.2 cung
+cấp. Không publish engine bằng compiler mới hơn: metadata Kotlin mới có thể vượt khả năng đọc của
+compiler trong app dù AGP/D8 vẫn hiểu bytecode đó.
+
+Flutter 3.47 vẫn dùng legacy Variant API trong Flutter Gradle Plugin, vì vậy app tạm giữ
+`android.newDsl=false`. `android.sync.suppressAgpWarnings` chỉ tắt hai mã warning do opt-out này;
+không tắt warning Gradle/AGP khác. Bỏ cả hai dòng khi Flutter chuyển sang
+`AndroidComponentsExtension`.
 
 ## 3. Cấu trúc feature `player`
 

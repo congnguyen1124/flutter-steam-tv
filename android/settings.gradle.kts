@@ -24,7 +24,6 @@ plugins {
     // higher, so 9.0.1 failed to configure. Matching the engine exactly leaves one AGP version
     // across the bridge rather than two to keep in step.
     id("com.android.application") version "9.3.2" apply false
-    id("org.jetbrains.kotlin.android") version "2.3.20" apply false
 }
 
 include(":app")

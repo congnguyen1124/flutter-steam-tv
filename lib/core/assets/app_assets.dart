@@ -1,5 +1,5 @@
 abstract final class AppAssets {
-  static const String appLogo = 'assets/images/img_logo_app.webp';
+  static const String appLogo = 'assets/images/img_logo_app.png';
   static const String appsIcon = 'assets/icons/ic_apps.svg';
   static const String calendarIcon = 'assets/icons/ic_calendar.svg';
   static const String homeIcon = 'assets/icons/ic_home.svg';
