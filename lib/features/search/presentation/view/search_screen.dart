@@ -516,7 +516,7 @@ final class _SearchQuerySurface extends StatelessWidget {
     return ExcludeFocus(
       child: Container(
         width: 500,
-        height: 48,
+        height: 36,
         decoration: BoxDecoration(
           color: StreamTvColors.surfaceContainer,
           borderRadius: BorderRadius.circular(24),
@@ -529,50 +529,47 @@ final class _SearchQuerySurface extends StatelessWidget {
               color: StreamTvColors.onSurfaceMuted,
               size: 21,
             ),
+
             const SizedBox(width: 12),
+
             Expanded(
-              child: SingleChildScrollView(
-                reverse: true,
-                scrollDirection: Axis.horizontal,
-                physics: const NeverScrollableScrollPhysics(),
-                child: query.isEmpty
-                    ? const Text(
-                        'Search movies, series, channels and shorts',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: StreamTvColors.onSurfaceMuted,
-                          fontSize: 16,
-                        ),
-                      )
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            beforeCaret,
-                            style: const TextStyle(
-                              color: StreamTvColors.onSurface,
-                              fontSize: 17,
-                            ),
-                          ),
-                          AnimatedOpacity(
-                            opacity: showCaret ? 1 : 0.22,
-                            duration: const Duration(milliseconds: 110),
-                            child: Container(
-                              width: 2,
-                              height: 24,
-                              color: StreamTvColors.primary,
-                            ),
-                          ),
-                          Text(
-                            afterCaret,
-                            style: const TextStyle(
-                              color: StreamTvColors.onSurface,
-                              fontSize: 17,
-                            ),
-                          ),
-                        ],
-                      ),
+              child: query.isEmpty
+                  ? const Text(
+                'Search movies, series, channels and shorts',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: StreamTvColors.onSurfaceMuted,
+                  fontSize: 16,
+                ),
+              )
+                  : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    beforeCaret,
+                    style: const TextStyle(
+                      color: StreamTvColors.onSurface,
+                      fontSize: 17,
+                    ),
+                  ),
+                  AnimatedOpacity(
+                    opacity: showCaret ? 1 : 0.22,
+                    duration: const Duration(milliseconds: 110),
+                    child: Container(
+                      width: 2,
+                      height: 20,
+                      color: StreamTvColors.primary,
+                    ),
+                  ),
+                  Text(
+                    afterCaret,
+                    style: const TextStyle(
+                      color: StreamTvColors.onSurface,
+                      fontSize: 17,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
