@@ -20,10 +20,12 @@ final class PlayerBufferingIndicator extends StatefulWidget {
   static const double size = 56;
 
   @override
-  State<PlayerBufferingIndicator> createState() => _PlayerBufferingIndicatorState();
+  State<PlayerBufferingIndicator> createState() =>
+      _PlayerBufferingIndicatorState();
 }
 
-final class _PlayerBufferingIndicatorState extends State<PlayerBufferingIndicator>
+final class _PlayerBufferingIndicatorState
+    extends State<PlayerBufferingIndicator>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -43,7 +45,9 @@ final class _PlayerBufferingIndicatorState extends State<PlayerBufferingIndicato
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) => CustomPaint(
-          painter: _PlayerBufferingPainter(rotation: _controller.value * 2 * math.pi),
+          painter: _PlayerBufferingPainter(
+            rotation: _controller.value * 2 * math.pi,
+          ),
         ),
       ),
     );
@@ -81,5 +85,6 @@ final class _PlayerBufferingPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_PlayerBufferingPainter oldDelegate) => oldDelegate.rotation != rotation;
+  bool shouldRepaint(_PlayerBufferingPainter oldDelegate) =>
+      oldDelegate.rotation != rotation;
 }

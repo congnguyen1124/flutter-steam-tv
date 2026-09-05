@@ -104,7 +104,9 @@ final class _PlayerIconButtonState extends State<PlayerIconButton> {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 shape: .circle,
-                color: _hasFocus ? StreamTvColors.playerForeground : widget.idleColor,
+                color: _hasFocus
+                    ? StreamTvColors.playerForeground
+                    : widget.idleColor,
               ),
               child: SizedBox.square(
                 dimension: widget.size,

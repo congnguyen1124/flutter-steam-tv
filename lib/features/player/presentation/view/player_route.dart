@@ -62,7 +62,7 @@ final class PlayerRoute extends ConsumerWidget {
 
   /// The native surface, or the shutter until the player exists.
   Widget _videoSurface(WidgetRef ref) {
-    final controller = ref.watch(playerControllerProvider(itemId)).valueOrNull;
+    final controller = ref.watch(playerControllerProvider(itemId)).value;
     if (controller == null) {
       return const ColoredBox(color: StreamTvColors.playerBackground);
     }

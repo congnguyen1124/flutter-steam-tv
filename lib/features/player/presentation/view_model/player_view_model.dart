@@ -33,7 +33,9 @@ Future<StreamPlayerController> playerController(Ref ref, String itemId) async {
 final class PlayerViewModel extends _$PlayerViewModel {
   @override
   Future<PlayerUiState> build(String itemId) async {
-    final item = await ref.watch(playbackRepositoryProvider).getPlaybackItem(itemId);
+    final item = await ref
+        .watch(playbackRepositoryProvider)
+        .getPlaybackItem(itemId);
     final controller = await ref.watch(playerControllerProvider(itemId).future);
 
     final subscription = controller.states.listen(_onPlayerState);
@@ -56,12 +58,12 @@ final class PlayerViewModel extends _$PlayerViewModel {
   /// A live stream resumes at the live edge instead of where the viewer paused, because resuming
   /// behind the broadcast leaves them with no way back to it.
   Future<void> togglePlayPause() async {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null) {
       return;
     }
     final controller = await _controller();
-    await (current.item.isLive
+    await (current.isLive
         ? controller.togglePlayPauseAtDefaultPosition()
         : controller.togglePlayPause());
   }
@@ -89,7 +91,7 @@ final class PlayerViewModel extends _$PlayerViewModel {
 
   /// Toggles the like affordance. Screen-local until there is a watchlist API.
   void toggleLiked() {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null) {
       return;
     }
@@ -98,7 +100,7 @@ final class PlayerViewModel extends _$PlayerViewModel {
 
   /// Toggles the save affordance. Screen-local until there is a watchlist API.
   void toggleSaved() {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null) {
       return;
     }
@@ -109,7 +111,7 @@ final class PlayerViewModel extends _$PlayerViewModel {
       ref.read(playerControllerProvider(itemId).future);
 
   void _onPlayerState(StreamPlayerState playerState) {
-    final current = state.valueOrNull;
+    final current = state.value;
     if (current == null) {
       // The very first snapshots can land while `build` is still resolving the item. Dropping them
       // is safe: `build` seeds from `controller.state`, which is already current by then.

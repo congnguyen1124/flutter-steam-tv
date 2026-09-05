@@ -72,7 +72,6 @@ final class PlayerControlRow extends StatelessWidget {
       child: Stack(
         children: [
           Align(
-            alignment: .center,
             child: _TransportCluster(
               uiState: uiState,
               focusNodes: focusNodes,
@@ -144,7 +143,9 @@ final class _TransportCluster extends StatelessWidget {
           const SizedBox(width: 14),
         ],
         PlayerIconButton(
-          iconAsset: uiState.isPlaying ? AppAssets.pauseIcon : AppAssets.playIcon,
+          iconAsset: uiState.isPlaying
+              ? AppAssets.pauseIcon
+              : AppAssets.playIcon,
           semanticLabel: uiState.isPlaying ? 'Pause' : 'Play',
           onPressed: onTogglePlayPause,
           focusNode: focusNodes[PlayerControlTarget.playPause]!,

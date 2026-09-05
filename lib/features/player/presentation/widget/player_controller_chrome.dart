@@ -28,6 +28,7 @@ final class PlayerControllerChrome extends StatelessWidget {
     required this.onToggleLiked,
     required this.onToggleSaved,
     required this.onOpenSettings,
+    required this.onSeekBarMoveDown,
     required this.onInteraction,
     super.key,
   });
@@ -66,6 +67,9 @@ final class PlayerControllerChrome extends StatelessWidget {
 
   /// Open the settings panel.
   final VoidCallback onOpenSettings;
+
+  /// Move focus from the seek bar down to the control the viewer last used.
+  final VoidCallback onSeekBarMoveDown;
 
   /// Called on every interaction, so the screen can defer its auto-hide timer.
   final VoidCallback onInteraction;
@@ -107,6 +111,10 @@ final class PlayerControllerChrome extends StatelessWidget {
               child: Column(
                 mainAxisSize: .min,
                 children: [
+                  // A live stream gets an elapsed-time label where the seek bar would be, per
+                  // spec/player.md. Not simply nothing: the viewer still wants to know how long
+                  // they have been watching, and an empty slot would let the control row jump up
+                  // the moment a stream's duration arrives.
                   if (showSeekBar)
                     PlayerSeekBar(
                       uiState: uiState,
@@ -114,9 +122,12 @@ final class PlayerControllerChrome extends StatelessWidget {
                       onSeekForward: onSeekForward,
                       onSeekBack: onSeekBack,
                       onTogglePlayPause: onTogglePlayPause,
+                      onMoveDown: onSeekBarMoveDown,
                       onInteraction: onInteraction,
                       autofocus: entryTarget == PlayerControlTarget.progress,
-                    ),
+                    )
+                  else
+                    _ElapsedLabel(position: uiState.position),
                   const SizedBox(height: 4),
                   PlayerControlRow(
                     uiState: uiState,
@@ -140,6 +151,30 @@ final class PlayerControllerChrome extends StatelessWidget {
   }
 }
 
+/// The live stand-in for the seek bar: elapsed time only, and not focusable.
+final class _ElapsedLabel extends StatelessWidget {
+  const _ElapsedLabel({required this.position});
+
+  final Duration position;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: PlayerSeekBar.controlHeight,
+    width: double.infinity,
+    child: Align(
+      alignment: .centerLeft,
+      child: Text(
+        formatPlayerClock(position),
+        style: const TextStyle(
+          color: StreamTvColors.playerMutedForeground,
+          fontSize: 12,
+          fontWeight: .w500,
+        ),
+      ),
+    ),
+  );
+}
+
 final class _TitleBlock extends StatelessWidget {
   const _TitleBlock({required this.uiState});
 
@@ -152,14 +187,16 @@ final class _TitleBlock extends StatelessWidget {
       children: [
         Row(
           children: [
-            if (uiState.item.isLive) ...[
+            if (uiState.isLive) ...[
               const _LiveBadge(),
               const SizedBox(width: 8),
             ],
             Expanded(
               child: Text(
                 uiState.item.title,
-                maxLines: 1,
+                // Two, per spec/player.md: a TV title is often long enough that one line ellipsises
+                // away the part that identifies the episode.
+                maxLines: 2,
                 overflow: .ellipsis,
                 style: const TextStyle(
                   color: StreamTvColors.playerForeground,

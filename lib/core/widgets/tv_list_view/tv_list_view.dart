@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+// ScrollCacheExtent is used by Flutter's own scroll widgets but is only exported from
+// rendering.dart, not from material.dart or widgets.dart.
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 /// Marker node used by an app shell to enter a TV list without knowing its rows.

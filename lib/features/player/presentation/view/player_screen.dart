@@ -124,6 +124,21 @@ final class _PlayerScreenState extends State<PlayerScreen> {
   @override
   void initState() {
     super.initState();
+    // Watch the nodes rather than have each button report upward. The buttons already own their
+    // focus state for painting, and a second copy pushed up here could disagree with the first.
+    //
+    // `progress` is skipped on purpose: this value answers "which control row entry to come back
+    // to", and the seek bar is what the viewer is coming back *from*.
+    for (final entry in _controlNodes.entries) {
+      if (entry.key == PlayerControlTarget.progress) {
+        continue;
+      }
+      entry.value.addListener(() {
+        if (entry.value.hasFocus) {
+          _lastControlTarget = entry.key;
+        }
+      });
+    }
     // The surface owns focus on entry, so the first D-pad press reveals the chrome rather than
     // being swallowed by whatever Flutter would otherwise have focused.
     WidgetsBinding.instance.addPostFrameCallback((_) => _claimSurfaceFocus());
@@ -190,7 +205,8 @@ final class _PlayerScreenState extends State<PlayerScreen> {
               },
             ),
             if (error == null) ...[
-              if (uiState.isBuffering) const Center(child: PlayerBufferingIndicator()),
+              if (uiState.isBuffering)
+                const Center(child: PlayerBufferingIndicator()),
               // Mounted only while it owns focus, because the chrome's entry focus request rides
               // on `autofocus` — which fires when a node is first attached, not when an opacity
               // changes. Keeping it mounted and merely invisible would mean no entry focus at all.
@@ -207,6 +223,7 @@ final class _PlayerScreenState extends State<PlayerScreen> {
                         onToggleLiked: widget.onToggleLiked,
                         onToggleSaved: widget.onToggleSaved,
                         onOpenSettings: _openSettings,
+                        onSeekBarMoveDown: _focusLastRowControl,
                         onInteraction: _onInteraction,
                       )
                     : const SizedBox.shrink(),
@@ -247,6 +264,15 @@ final class _PlayerScreenState extends State<PlayerScreen> {
     return isAvailable ? _lastControlTarget : PlayerControlTarget.playPause;
   }
 
+  /// Moves focus from the seek bar to the control the viewer last used.
+  ///
+  /// `spec/player.md` requires this, and requires it to be remembered state rather than a fixed
+  /// target: pressing Down after scrubbing should return to the control the viewer was working
+  /// with, not reset them to the start of the row.
+  void _focusLastRowControl() {
+    _controlNodes[_resolvedEntryTarget()]?.requestFocus();
+  }
+
   void _claimSurfaceFocus() {
     if (mounted && _focusOwner == PlayerFocusOwner.surface) {
       _surfaceNode.requestFocus();
@@ -269,7 +295,6 @@ final class _PlayerScreenState extends State<PlayerScreen> {
 
   void _openSettings() {
     _autoHideTimer?.cancel();
-    _rememberFocusedControl();
     setState(() {
       _lastControlTarget = PlayerControlTarget.settings;
       _isSettingsOpen = true;
@@ -296,24 +321,7 @@ final class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
-  void _onInteraction() {
-    _rememberFocusedControl();
-    _restartAutoHide();
-  }
-
-  /// Records which control has focus, so the chrome can come back to it.
-  ///
-  /// Read from the nodes rather than reported upward by each button: the buttons already own their
-  /// focus state for painting, and having them also push it here would be a second copy that can
-  /// disagree with the first.
-  void _rememberFocusedControl() {
-    for (final entry in _controlNodes.entries) {
-      if (entry.value.hasFocus) {
-        _lastControlTarget = entry.key;
-        return;
-      }
-    }
-  }
+  void _onInteraction() => _restartAutoHide();
 
   /// Restarts the auto-hide countdown, or cancels it while paused.
   ///

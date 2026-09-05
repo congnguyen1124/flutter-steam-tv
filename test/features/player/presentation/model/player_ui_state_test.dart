@@ -6,9 +6,21 @@ import 'package:stream_player/stream_player.dart';
 
 void main() {
   group('seekability', () {
-    test('a live item is never seekable, even if a duration is reported', () {
-      // A live manifest can briefly report a duration while its window is still being read. Trusting
-      // it would put a seek bar on a live stream for a second and then take it away.
+    test('a live stream reporting no duration is not seekable', () {
+      // spec/player.md: "A live stream must be identified by absent duration, not by a separate
+      // flag." So this is derived from the duration, not from the catalogue's isLive.
+      final state = _state(isLive: true);
+
+      expect(state.isSeekable, isFalse);
+      expect(state.progressFraction, 0);
+    });
+
+    test('the LIVE badge comes from the catalogue, not from seekability', () {
+      // The two answer different questions, and a DVR live stream is where they diverge: it reports
+      // a seekable window, so the viewer gets a seek bar *and* a LIVE badge.
+      //
+      // Deriving the badge from the duration instead would flash LIVE over every on-demand title
+      // for the first second, while its duration is still zero.
       final state = _state(
         isLive: true,
         playerState: StreamPlayerState.initial.copyWith(
@@ -16,8 +28,15 @@ void main() {
         ),
       );
 
-      expect(state.isSeekable, isFalse);
-      expect(state.progressFraction, 0);
+      expect(state.isLive, isTrue);
+      expect(state.isSeekable, isTrue);
+    });
+
+    test('an on-demand item is not live even before its duration arrives', () {
+      final state = _state();
+
+      expect(state.isLive, isFalse);
+      expect(state.isSeekable, isFalse, reason: 'no duration yet');
     });
 
     test('an on-demand item with a duration is seekable', () {
@@ -64,7 +83,9 @@ void main() {
     test('the host message never reaches the viewer', () {
       final state = _state(
         playerState: StreamPlayerState.initial.copyWith(
-          error: const StreamPlayerUnknownError(message: 'ERROR_CODE_DECODING_FAILED'),
+          error: const StreamPlayerUnknownError(
+            message: 'ERROR_CODE_DECODING_FAILED',
+          ),
         ),
       );
 
@@ -100,25 +121,35 @@ void main() {
 
     test('quality options are highest first, with Auto on top', () {
       final state = _state(
-        playerState: StreamPlayerState.initial.copyWith(videoTracks: _twoVideoTracks),
+        playerState: StreamPlayerState.initial.copyWith(
+          videoTracks: _twoVideoTracks,
+        ),
       );
 
       final quality = state.settings.categories.single;
       expect(quality.kind, PlayerSettingKind.quality);
-      expect(
-        quality.options.map((option) => option.label).toList(),
-        <String>['Auto', '1080p', '720p'],
-      );
+      expect(quality.options.map((option) => option.label).toList(), <String>[
+        'Auto',
+        '1080p',
+        '720p',
+      ]);
     });
 
     test('Auto is selected while adaptive selection is running', () {
-      // Several renditions report isSelected at once under adaptive selection, so "exactly one" is
-      // the signal that the viewer pinned a quality.
+      // Adaptive selection reports *several* renditions as selected at once, which is exactly what
+      // this fixture is: both tracks selected. "Exactly one selected" is the signal that the viewer
+      // pinned a quality — see the companion test below.
       final state = _state(
         playerState: StreamPlayerState.initial.copyWith(
-          videoTracks: [
-            _twoVideoTracks.first,
-            const StreamPlayerVideoTrack(
+          videoTracks: const [
+            StreamPlayerVideoTrack(
+              id: '1080',
+              width: 1920,
+              height: 1080,
+              bitrate: 6000000,
+              isSelected: true,
+            ),
+            StreamPlayerVideoTrack(
               id: '720',
               width: 1280,
               height: 720,
@@ -134,40 +165,83 @@ void main() {
       expect(auto.isSelected, isTrue);
     });
 
-    test('an unlabelled audio track falls back to its language, then to a default', () {
+    test('pinning one rendition deselects Auto and selects that rendition', () {
       final state = _state(
         playerState: StreamPlayerState.initial.copyWith(
-          audioTracks: const [
-            StreamPlayerAudioTrack(
-              id: 'a',
-              language: 'vi',
-              label: '',
-              isDefaultSelected: true,
-              isSelected: true,
-            ),
-            StreamPlayerAudioTrack(
-              id: 'b',
-              language: '',
-              label: '',
-              isDefaultSelected: false,
+          videoTracks: const [
+            StreamPlayerVideoTrack(
+              id: '1080',
+              width: 1920,
+              height: 1080,
+              bitrate: 6000000,
               isSelected: false,
+            ),
+            StreamPlayerVideoTrack(
+              id: '720',
+              width: 1280,
+              height: 720,
+              bitrate: 3000000,
+              isSelected: true,
             ),
           ],
         ),
       );
 
-      // An unlabelled row is unreachable on a remote: nothing to read, nothing to aim at.
+      final options = state.settings.categories.single.options;
+      expect(options.first.label, 'Auto');
+      expect(options.first.isSelected, isFalse);
       expect(
-        state.settings.categories.single.options.map((option) => option.label).toList(),
-        <String>['VI', 'Default'],
+        options
+            .where((option) => option.isSelected)
+            .map((option) => option.label),
+        <String>['720p'],
       );
     });
+
+    test(
+      'an unlabelled audio track falls back to its language, then to a default',
+      () {
+        final state = _state(
+          playerState: StreamPlayerState.initial.copyWith(
+            audioTracks: const [
+              StreamPlayerAudioTrack(
+                id: 'a',
+                language: 'vi',
+                label: '',
+                isDefaultSelected: true,
+                isSelected: true,
+              ),
+              StreamPlayerAudioTrack(
+                id: 'b',
+                language: '',
+                label: '',
+                isDefaultSelected: false,
+                isSelected: false,
+              ),
+            ],
+          ),
+        );
+
+        // An unlabelled row is unreachable on a remote: nothing to read, nothing to aim at.
+        expect(
+          state.settings.categories.single.options
+              .map((option) => option.label)
+              .toList(),
+          <String>['VI', 'Default'],
+        );
+      },
+    );
 
     test('subtitles always offer Off', () {
       final state = _state(
         playerState: StreamPlayerState.initial.copyWith(
           textTracks: const [
-            StreamPlayerTextTrack(id: 'en', language: 'en', label: 'English', isSelected: false),
+            StreamPlayerTextTrack(
+              id: 'en',
+              language: 'en',
+              label: 'English',
+              isSelected: false,
+            ),
           ],
         ),
       );

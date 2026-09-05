@@ -26,6 +26,8 @@
 - Use generated providers with `riverpod_annotation`; never edit generated files.
 - Model feature ViewModels as generated `Notifier` or `AsyncNotifier` classes with public action
   methods. Do not expose mutable public fields.
+- Read a possibly-absent value with `AsyncValue.value` (nullable) or `requireValue`. Riverpod 3
+  removed `valueOrNull`; it fails as `undefined_getter`, not as a deprecation.
 - Use `AsyncValue<T>` as the LCE state for asynchronous screens. Do not duplicate it with booleans
   such as `isLoading` plus nullable `data` and `error`.
 - Use `ref.watch` for reactive dependencies, `ref.read` in event callbacks, and `ref.listen` for

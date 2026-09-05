@@ -16,7 +16,8 @@ abstract final class AppAssets {
   static const String heartIcon = 'assets/icons/ic_heart.svg';
   static const String heartOutlineIcon = 'assets/icons/ic_heart_outline.svg';
   static const String bookmarkIcon = 'assets/icons/ic_bookmark.svg';
-  static const String bookmarkOutlineIcon = 'assets/icons/ic_bookmark_outline.svg';
+  static const String bookmarkOutlineIcon =
+      'assets/icons/ic_bookmark_outline.svg';
   static const String checkIcon = 'assets/icons/ic_player_check.svg';
   static const String hdIcon = 'assets/icons/ic_hd.svg';
   static const String audioIcon = 'assets/icons/ic_audio.svg';

@@ -58,7 +58,8 @@ final class PlayerSettingsPanel extends StatelessWidget {
                 child: ListView(
                   padding: const .symmetric(horizontal: 16, vertical: 20),
                   children: [
-                    for (final (index, category) in settings.categories.indexed) ...[
+                    for (final (index, category)
+                        in settings.categories.indexed) ...[
                       if (index > 0) const SizedBox(height: 18),
                       _CategoryHeader(kind: category.kind),
                       const SizedBox(height: 8),
@@ -67,8 +68,10 @@ final class PlayerSettingsPanel extends StatelessWidget {
                           option: option,
                           // The first option of the first category takes focus, so the panel is
                           // usable the instant it appears.
-                          autofocus: index == 0 && option == category.options.first,
-                          onPressed: () => onOptionSelected(category.kind, option.id),
+                          autofocus:
+                              index == 0 && option == category.options.first,
+                          onPressed: () =>
+                              onOptionSelected(category.kind, option.id),
                         ),
                     ],
                   ],
@@ -112,7 +115,10 @@ final class _CategoryHeader extends StatelessWidget {
           asset,
           width: 18,
           height: 18,
-          colorFilter: const ColorFilter.mode(StreamTvColors.playerMutedForeground, .srcIn),
+          colorFilter: const ColorFilter.mode(
+            StreamTvColors.playerMutedForeground,
+            .srcIn,
+          ),
         ),
         const SizedBox(width: 8),
         Text(
@@ -162,7 +168,9 @@ final class _OptionRowState extends State<_OptionRow> {
         borderRadius: .circular(8),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: _hasFocus ? StreamTvColors.playerForeground : Colors.transparent,
+            color: _hasFocus
+                ? StreamTvColors.playerForeground
+                : Colors.transparent,
             borderRadius: .circular(8),
           ),
           child: Padding(

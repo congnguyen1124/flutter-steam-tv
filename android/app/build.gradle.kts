@@ -6,12 +6,21 @@ plugins {
 
 android {
     namespace = "com.example.flutter_steam_tv"
-    compileSdk = flutter.compileSdkVersion
+    // 37, not flutter.compileSdkVersion (36): the stream_player_android plugin compiles against 37
+    // because the playback engine does, and an app cannot compile against a lower SDK than a
+    // library it consumes. Compile SDKs are backward compatible, so this does not raise minSdk or
+    // targetSdk.
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Required by the IMA libraries the playback engine ships for client-side ad insertion:
+        // media3-exoplayer-ima and interactivemedia both declare it in their AAR metadata, and the
+        // build fails at checkDebugAarMetadata without it. Needed even though this app does not
+        // enable ads yet — the dependency arrives with the engine either way.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -19,7 +28,10 @@ android {
         applicationId = "com.example.flutter_steam_tv"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // 26, not flutter.minSdkVersion (24): the playback engine's floor, because Media3 and the
+        // engine's own APIs need it. Android TV devices below 26 are out of scope anyway — see
+        // android_stream_player/architecture.md, "What the consumer must provide".
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -42,4 +54,8 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 }

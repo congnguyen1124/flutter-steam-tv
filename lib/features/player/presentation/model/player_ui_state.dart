@@ -50,7 +50,9 @@ final class PlayerUiState {
 
   /// Playback position, clamped so a seek bar cannot render past its own end.
   Duration get position =>
-      playerState.position > duration && duration > Duration.zero ? duration : playerState.position;
+      playerState.position > duration && duration > Duration.zero
+      ? duration
+      : playerState.position;
 
   /// Length of the item, or zero for a live stream.
   Duration get duration => playerState.duration;
@@ -60,10 +62,22 @@ final class PlayerUiState {
 
   /// Whether a seek bar makes sense at all.
   ///
-  /// A live stream reports no duration, so a progress bar would sit permanently at zero and a seek
-  /// would have nowhere to land. [PlaybackItem.isLive] is checked too, because a live manifest can
-  /// briefly report a duration while its window is still being read.
-  bool get isSeekable => !item.isLive && duration > Duration.zero;
+  /// Derived from the duration alone, which `spec/player.md` requires: *"A live stream must be
+  /// identified by absent duration, not by a separate flag."* A live stream reports no duration, so
+  /// a progress bar would sit permanently at zero and a seek would have nowhere to land.
+  ///
+  /// [PlaybackItem.isLive] is deliberately **not** consulted here. It says what the catalogue
+  /// believes; this says what the player can actually do, and only the second one can be trusted to
+  /// match the stream that is really loaded. The catalogue flag is still what drives the `LIVE`
+  /// badge and the resume-at-live-edge toggle — see [isLive].
+  bool get isSeekable => duration > Duration.zero;
+
+  /// Whether to present this as live: the `LIVE` badge, and resuming at the live edge.
+  ///
+  /// From the catalogue rather than from [isSeekable], because every item reports a duration of
+  /// zero while it is still loading — deriving the badge from that would flash `LIVE` over the
+  /// title of every on-demand item for the first second of playback.
+  bool get isLive => item.isLive;
 
   /// Playback progress in `0..1`, or zero while the duration is unknown.
   double get progressFraction => isSeekable ? playerState.progress : 0;
@@ -89,7 +103,10 @@ final class PlayerUiState {
     if (error == null) {
       return null;
     }
-    return PlayerErrorUiItem(message: _messageFor(error), isRetryable: error.isRetryable);
+    return PlayerErrorUiItem(
+      message: _messageFor(error),
+      isRetryable: error.isRetryable,
+    );
   }
 
   /// Returns a copy with the given fields replaced.
@@ -111,11 +128,15 @@ final class PlayerUiState {
   /// know whether this screen says "You're offline" or something in Vietnamese, and it must not
   /// leak a decoder message to a viewer.
   String _messageFor(StreamPlayerError error) => switch (error) {
-    StreamPlayerNoNetworkError() => 'No internet connection. Check your network and try again.',
+    StreamPlayerNoNetworkError() =>
+      'No internet connection. Check your network and try again.',
     StreamPlayerNotFoundError() => 'This video is no longer available.',
-    StreamPlayerNotEntitledError() => 'This video is not available on your account.',
-    StreamPlayerUnsupportedFormatError() => 'This video cannot be played on this device.',
-    StreamPlayerUnknownError() => 'Something went wrong while playing this video.',
+    StreamPlayerNotEntitledError() =>
+      'This video is not available on your account.',
+    StreamPlayerUnsupportedFormatError() =>
+      'This video cannot be played on this device.',
+    StreamPlayerUnknownError() =>
+      'Something went wrong while playing this video.',
   };
 }
 

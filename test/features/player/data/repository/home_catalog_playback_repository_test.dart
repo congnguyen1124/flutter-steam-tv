@@ -64,7 +64,9 @@ void main() {
     });
 
     test('an episode is reachable by its own id', () async {
-      final repository = HomeCatalogPlaybackRepository(_FakeHomeRepository(_seriesSections));
+      final repository = HomeCatalogPlaybackRepository(
+        _FakeHomeRepository(_seriesSections),
+      );
 
       final item = await repository.getPlaybackItem('episode-2');
 
@@ -74,16 +76,21 @@ void main() {
       expect(item.streamUrl, Uri.parse('https://cdn.example/ep2.m3u8'));
     });
 
-    test('a series with no stream of its own resolves to its first episode', () async {
-      final repository = HomeCatalogPlaybackRepository(_FakeHomeRepository(_seriesSections));
+    test(
+      'a series with no stream of its own resolves to its first episode',
+      () async {
+        final repository = HomeCatalogPlaybackRepository(
+          _FakeHomeRepository(_seriesSections),
+        );
 
-      final item = await repository.getPlaybackItem('series-a');
+        final item = await repository.getPlaybackItem('series-a');
 
-      // Pressing a series means "start watching". Resolving it here is what lets the title block
-      // name the episode that is really on screen.
-      expect(item.id, 'episode-1');
-      expect(item.title, 'Episode 1');
-    });
+        // Pressing a series means "start watching". Resolving it here is what lets the title block
+        // name the episode that is really on screen.
+        expect(item.id, 'episode-1');
+        expect(item.title, 'Episode 1');
+      },
+    );
 
     test('a series with a stream of its own plays that', () async {
       final repository = HomeCatalogPlaybackRepository(
@@ -149,38 +156,55 @@ void main() {
 
   group('failures name the item', () {
     test('an unknown id fails with the id in the message', () async {
-      final repository = HomeCatalogPlaybackRepository(_FakeHomeRepository(const []));
+      final repository = HomeCatalogPlaybackRepository(
+        _FakeHomeRepository(const []),
+      );
 
       await expectLater(
         repository.getPlaybackItem('nope'),
-        throwsA(isA<StateError>().having((e) => e.message, 'message', contains('nope'))),
-      );
-    });
-
-    test('an item with nothing to play fails rather than opening a black player', () async {
-      final repository = HomeCatalogPlaybackRepository(
-        _FakeHomeRepository(const [
-          HomeSection(
-            id: 'videos',
-            title: 'Videos',
-            viewType: .videos,
-            items: [
-              HomeItem(
-                id: 'video-empty',
-                title: 'Nothing to play',
-                description: 'No urls at all',
-                kind: .video,
-              ),
-            ],
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('nope'),
           ),
-        ]),
-      );
-
-      await expectLater(
-        repository.getPlaybackItem('video-empty'),
-        throwsA(isA<StateError>().having((e) => e.message, 'message', contains('video-empty'))),
+        ),
       );
     });
+
+    test(
+      'an item with nothing to play fails rather than opening a black player',
+      () async {
+        final repository = HomeCatalogPlaybackRepository(
+          _FakeHomeRepository(const [
+            HomeSection(
+              id: 'videos',
+              title: 'Videos',
+              viewType: .videos,
+              items: [
+                HomeItem(
+                  id: 'video-empty',
+                  title: 'Nothing to play',
+                  description: 'No urls at all',
+                  kind: .video,
+                ),
+              ],
+            ),
+          ]),
+        );
+
+        await expectLater(
+          repository.getPlaybackItem('video-empty'),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('video-empty'),
+            ),
+          ),
+        );
+      },
+    );
   });
 
   group('against the real catalogue', () {
@@ -207,19 +231,24 @@ void main() {
       }
     });
 
-    test('a live channel from the real catalogue reports itself live', () async {
-      const home = HomeRepositoryImpl(HomeDummyDataSource());
-      final repository = HomeCatalogPlaybackRepository(home);
-      final sections = await home.getHomeSections();
-      final channel = sections
-          .firstWhere((section) => section.viewType == HomeSectionViewType.channels)
-          .items
-          .first;
+    test(
+      'a live channel from the real catalogue reports itself live',
+      () async {
+        const home = HomeRepositoryImpl(HomeDummyDataSource());
+        final repository = HomeCatalogPlaybackRepository(home);
+        final sections = await home.getHomeSections();
+        final channel = sections
+            .firstWhere(
+              (section) => section.viewType == HomeSectionViewType.channels,
+            )
+            .items
+            .first;
 
-      final item = await repository.getPlaybackItem(channel.id);
+        final item = await repository.getPlaybackItem(channel.id);
 
-      expect(item.isLive, isTrue);
-    });
+        expect(item.isLive, isTrue);
+      },
+    );
   });
 }
 

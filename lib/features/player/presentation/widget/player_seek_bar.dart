@@ -22,6 +22,7 @@ final class PlayerSeekBar extends StatefulWidget {
     required this.onSeekForward,
     required this.onSeekBack,
     required this.onTogglePlayPause,
+    required this.onMoveDown,
     required this.onInteraction,
     this.autofocus = false,
     super.key,
@@ -45,6 +46,14 @@ final class PlayerSeekBar extends StatefulWidget {
   /// Toggle playback — Select on the bar itself.
   final VoidCallback onTogglePlayPause;
 
+  /// Move focus down to the control the viewer last used.
+  ///
+  /// A call rather than a `focusProperties.down` target, because the destination is remembered
+  /// state, not a fixed widget — `spec/player.md` requires Down to land on the last-used control,
+  /// and Flutter's own focus restoration cannot serve it: this row is left and re-entered by direct
+  /// focus requests, which bypass the search-enter and search-exit hooks that restoration keys off.
+  final VoidCallback onMoveDown;
+
   /// Called on every key this widget consumes, so the screen can defer its auto-hide timer.
   final VoidCallback onInteraction;
 
@@ -58,6 +67,8 @@ final class PlayerSeekBar extends StatefulWidget {
 final class _PlayerSeekBarState extends State<PlayerSeekBar> {
   static const double _thumbFocused = 14;
   static const double _thumbIdle = 10;
+  static const double _labelRowHeight = 16;
+  static const double _labelToTrackGap = 4;
 
   bool _hasFocus = false;
 
@@ -75,14 +86,21 @@ final class _PlayerSeekBarState extends State<PlayerSeekBar> {
           children: [
             // Elapsed and total sit above the track: below it they collide with the control row,
             // and the reference layout reads the same way — time first, then the bar it describes.
-            Row(
-              mainAxisAlignment: .spaceBetween,
-              children: [
-                _TimeLabel(text: formatPlayerClock(widget.uiState.position)),
-                _TimeLabel(text: formatPlayerClock(widget.uiState.duration)),
-              ],
+            //
+            // Height pinned so the column adds up to exactly `controlHeight` (16 + 4 + 20). Letting
+            // the row size itself to the text made the total depend on the font's line metrics,
+            // which overflowed the box by a pixel with Roboto.
+            SizedBox(
+              height: _labelRowHeight,
+              child: Row(
+                mainAxisAlignment: .spaceBetween,
+                children: [
+                  _TimeLabel(text: formatPlayerClock(widget.uiState.position)),
+                  _TimeLabel(text: formatPlayerClock(widget.uiState.duration)),
+                ],
+              ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: _labelToTrackGap),
             _SeekTrack(
               progressFraction: widget.uiState.progressFraction,
               bufferedFraction: widget.uiState.bufferedFraction,
@@ -120,7 +138,12 @@ final class _PlayerSeekBarState extends State<PlayerSeekBar> {
         widget.onTogglePlayPause();
         return .handled;
 
-      // Up and Down fall through on purpose, so directional traversal reaches the control row.
+      case LogicalKeyboardKey.arrowDown:
+        widget.onInteraction();
+        widget.onMoveDown();
+        return .handled;
+
+      // Up falls through on purpose, so directional traversal leaves the chrome the way it came in.
       case _:
         return .ignored;
     }
@@ -143,7 +166,9 @@ final class _SeekTrack extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         // `.toDouble()` because `num.clamp` is typed to return `num`, and `left:` wants a double.
-        final travel = (constraints.maxWidth - thumbSize).clamp(0.0, double.infinity).toDouble();
+        final travel = (constraints.maxWidth - thumbSize)
+            .clamp(0.0, double.infinity)
+            .toDouble();
         return SizedBox(
           height: 20,
           child: Stack(
@@ -187,6 +212,9 @@ final class _TimeLabel extends StatelessWidget {
     style: const TextStyle(
       color: StreamTvColors.playerMutedForeground,
       fontSize: 12,
+      // Pinned, so the label occupies 14.4px whatever the font's own line metrics say — the row
+      // above reserves 16 and must not be overflowed by a font swap.
+      height: 1.2,
       fontWeight: .w500,
     ),
   );

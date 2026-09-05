@@ -17,7 +17,9 @@ import 'package:stream_player/stream_player.dart';
 /// way.
 void main() {
   group('revealing the chrome', () {
-    testWidgets('the controller is hidden until a key is pressed', (tester) async {
+    testWidgets('the controller is hidden until a key is pressed', (
+      tester,
+    ) async {
       await tester.pumpWidget(_app(_state(isPlaying: true)));
 
       expect(find.byType(PlayerControlRow), findsNothing);
@@ -28,7 +30,9 @@ void main() {
       expect(find.byType(PlayerControlRow), findsOneWidget);
     });
 
-    testWidgets('the reveal press does not also activate a control', (tester) async {
+    testWidgets('the reveal press does not also activate a control', (
+      tester,
+    ) async {
       var toggles = 0;
       await tester.pumpWidget(
         _app(_state(isPlaying: true), onTogglePlayPause: () => toggles++),
@@ -42,7 +46,9 @@ void main() {
       expect(toggles, 0);
     });
 
-    testWidgets('the play/pause key toggles and reveals in one press', (tester) async {
+    testWidgets('the play/pause key toggles and reveals in one press', (
+      tester,
+    ) async {
       var toggles = 0;
       await tester.pumpWidget(
         _app(_state(isPlaying: true), onTogglePlayPause: () => toggles++),
@@ -74,6 +80,86 @@ void main() {
       // have nowhere to land.
       expect(find.byType(PlayerSeekBar), findsNothing);
       expect(find.byType(PlayerControlRow), findsOneWidget);
+    });
+  });
+
+  group('live streams', () {
+    testWidgets('an elapsed-time label stands in for the seek bar', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true, isLive: true)));
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+
+      // Not simply nothing, per spec/player.md: the viewer still wants to know how long they have
+      // been watching, and an empty slot would let the control row jump the moment a duration
+      // arrives.
+      expect(find.byType(PlayerSeekBar), findsNothing);
+      expect(find.text('1:00'), findsOneWidget);
+    });
+
+    testWidgets('rewind and forward are absent', (tester) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true, isLive: true)));
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Rewind'), findsNothing);
+      expect(find.text('Forward'), findsNothing);
+    });
+  });
+
+  group('focus graph', () {
+    // Asserted through the focus nodes' debug labels, because that is the only way to name *which*
+    // control holds the D-pad. The labels are set by PlayerScreen itself, so they are as stable as
+    // the enum they come from.
+    String? focusedControl() => FocusManager.instance.primaryFocus?.debugLabel;
+
+    testWidgets('the controller opens on play/pause', (tester) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true)));
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+
+      expect(focusedControl(), 'player-playPause');
+    });
+
+    testWidgets('up reaches the seek bar and down returns to the control in use', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true)));
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pumpAndSettle();
+      expect(focusedControl(), 'player-progress');
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+
+      // spec/player.md: Down from the seek bar returns to the control the viewer last used, which
+      // before any move is play/pause. Handled by an explicit callback rather than by traversal,
+      // because the destination is remembered state.
+      expect(focusedControl(), 'player-playPause');
+    });
+
+    testWidgets('left and right on the seek bar seek without moving focus', (
+      tester,
+    ) async {
+      var forwards = 0;
+      await tester.pumpWidget(
+        _app(_state(isPlaying: true), onSeekForward: () => forwards++),
+      );
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+
+      expect(forwards, 1);
+      expect(focusedControl(), 'player-progress');
     });
   });
 
@@ -130,7 +216,11 @@ void main() {
 
     testWidgets('a forbidden stream offers none', (tester) async {
       await tester.pumpWidget(
-        _app(_state(error: const StreamPlayerNotEntitledError(message: 'HTTP 403'))),
+        _app(
+          _state(
+            error: const StreamPlayerNotEntitledError(message: 'HTTP 403'),
+          ),
+        ),
       );
       await tester.pumpAndSettle();
 
@@ -166,13 +256,14 @@ void main() {
 Widget _app(
   PlayerUiState uiState, {
   VoidCallback? onTogglePlayPause,
+  VoidCallback? onSeekForward,
   VoidCallback? onRetry,
 }) => MaterialApp(
   home: PlayerScreen(
     uiState: uiState,
     videoSurface: const ColoredBox(color: Color(0xFF275D8C)),
     onTogglePlayPause: onTogglePlayPause ?? _noop,
-    onSeekForward: _noop,
+    onSeekForward: onSeekForward ?? _noop,
     onSeekBack: _noop,
     onToggleLiked: _noop,
     onToggleSaved: _noop,

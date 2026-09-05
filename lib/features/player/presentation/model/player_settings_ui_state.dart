@@ -22,10 +22,7 @@ final class PlayerSettingOption {
 /// One category in the settings panel.
 final class PlayerSettingCategory {
   /// Describes one category and its options.
-  const PlayerSettingCategory({
-    required this.kind,
-    required this.options,
-  });
+  const PlayerSettingCategory({required this.kind, required this.options});
 
   /// Which setting this is.
   final PlayerSettingKind kind;
@@ -70,7 +67,8 @@ final class PlayerSettingsUiState {
   }) {
     final categories = <PlayerSettingCategory>[];
 
-    if (capabilities.videoTrackSelection && playerState.videoTracks.length > 1) {
+    if (capabilities.videoTrackSelection &&
+        playerState.videoTracks.length > 1) {
       categories.add(
         PlayerSettingCategory(
           kind: .quality,
@@ -81,7 +79,9 @@ final class PlayerSettingsUiState {
               // Adaptive selection is in effect when nothing was pinned. Several renditions report
               // `isSelected` at once while it runs, so "exactly one is selected" is the signal that
               // the viewer chose a specific one.
-              isSelected: playerState.videoTracks.where((t) => t.isSelected).length != 1,
+              isSelected:
+                  playerState.videoTracks.where((t) => t.isSelected).length !=
+                  1,
             ),
             ..._qualityOptions(playerState.videoTracks),
           ],
@@ -89,7 +89,8 @@ final class PlayerSettingsUiState {
       );
     }
 
-    if (capabilities.audioTrackSelection && playerState.audioTracks.length > 1) {
+    if (capabilities.audioTrackSelection &&
+        playerState.audioTracks.length > 1) {
       categories.add(
         PlayerSettingCategory(
           kind: .audio,
@@ -97,7 +98,10 @@ final class PlayerSettingsUiState {
             for (final track in playerState.audioTracks)
               PlayerSettingOption(
                 id: track.id,
-                label: _trackLabel(label: track.label, language: track.language),
+                label: _trackLabel(
+                  label: track.label,
+                  language: track.language,
+                ),
                 isSelected: track.isSelected,
               ),
           ],
@@ -113,12 +117,17 @@ final class PlayerSettingsUiState {
             PlayerSettingOption(
               id: StreamPlayerTextTrack.offId,
               label: 'Off',
-              isSelected: playerState.textTracks.every((track) => !track.isSelected),
+              isSelected: playerState.textTracks.every(
+                (track) => !track.isSelected,
+              ),
             ),
             for (final track in playerState.textTracks)
               PlayerSettingOption(
                 id: track.id,
-                label: _trackLabel(label: track.label, language: track.language),
+                label: _trackLabel(
+                  label: track.label,
+                  language: track.language,
+                ),
                 isSelected: track.isSelected,
               ),
           ],
@@ -144,14 +153,17 @@ final class PlayerSettingsUiState {
   ///
   /// The engine already drops unlabelable renditions and keeps the highest bitrate per height, so
   /// this only has to order them the way a viewer reads a quality menu — best at the top.
-  static List<PlayerSettingOption> _qualityOptions(List<StreamPlayerVideoTrack> tracks) {
+  static List<PlayerSettingOption> _qualityOptions(
+    List<StreamPlayerVideoTrack> tracks,
+  ) {
     final sorted = [...tracks]..sort((a, b) => b.height.compareTo(a.height));
     return [
       for (final track in sorted)
         PlayerSettingOption(
           id: track.id,
           label: '${track.height}p',
-          isSelected: track.isSelected && sorted.where((t) => t.isSelected).length == 1,
+          isSelected:
+              track.isSelected && sorted.where((t) => t.isSelected).length == 1,
         ),
     ];
   }

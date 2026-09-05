@@ -101,6 +101,22 @@ Trước khi build Android, publish engine một lần (và sau mỗi lần sử
 cd ../android_stream_player && ./gradlew :stream-player:publishToMavenLocal
 ```
 
+### Cấu hình Android bắt buộc
+
+Tất cả đều là yêu cầu của **engine**, không phải của plugin, và mỗi cái fail bằng một thông báo khác
+nhau. `android/` đã áp dụng đủ; app khác muốn dùng bridge này cần cả năm.
+
+| Cấu hình | Giá trị | Vì sao |
+|---|---|---|
+| `compileSdk` | **37** | Engine compile với 37; app không thể compile thấp hơn library nó dùng. Compile SDK tương thích ngược nên không ảnh hưởng `targetSdk`. |
+| `minSdk` | **26** | Sàn của engine. Fail ở manifest merger, không phải lúc compile. |
+| AGP | **≥ 9.1.0** (dùng 9.3.2 cho khớp engine) | Media3 1.11, Compose 1.12, core-ktx 1.19 đều từ chối AGP dưới 9.1.0. |
+| Gradle wrapper | **≥ 9.5.0** (dùng 9.7.1 cho khớp engine) | AGP 9.3.2 yêu cầu. |
+| Core library desugaring | **bật**, kèm `coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")` | `media3-exoplayer-ima` và `interactivemedia` khai báo trong AAR metadata. Cần **kể cả khi tắt quảng cáo** — engine vẫn kéo chúng vào. |
+
+Chọn đúng phiên bản AGP/Gradle của engine thay vì lấy mức tối thiểu, để cả hai đầu cầu chỉ có **một**
+phiên bản phải giữ đồng bộ.
+
 ## 3. Cấu trúc feature `player`
 
 Đúng quy ước feature-first trong [`riverpod_clean_architecture.md`](riverpod_clean_architecture.md):
@@ -108,15 +124,13 @@ cd ../android_stream_player && ./gradlew :stream-player:publishToMavenLocal
 
 ```text
 lib/features/player/
-|-- player_providers.dart              # composition root: DataSource + Repository
+|-- player_providers.dart                  # composition root: nối Repository với domain interface
 |-- domain/
-|   |-- model/playback_item.dart       # id, title, description, streamUrl, isLive
+|   |-- model/playback_item.dart           # id, title, description, streamUrl, isLive
 |   `-- repository/playback_repository.dart
 |-- data/
-|   |-- model/playback_item_data.dart  # transport model (chưa có API nên chưa cần freezed/json)
-|   |-- source/playback_data_source.dart
-|   |-- mapper/playback_data_mapper.dart
-|   `-- repository/playback_repository_impl.dart
+|   |-- mapper/home_item_playback_mapper.dart      # HomeItem -> PlaybackItem
+|   `-- repository/home_catalog_playback_repository.dart
 `-- presentation/
     |-- model/
     |   |-- player_ui_state.dart           # state màn hình + copy lỗi + format đồng hồ
@@ -138,23 +152,58 @@ lib/features/player/
         `-- player_error_panel.dart
 ```
 
+Feature `player` **không có DataSource riêng**. Lý do ở mục kế tiếp.
+
+### Player đọc catalogue của Home
+
+`HomeItem` đã mang `videoUrl`, `trailerUrl`, `kind` và `episodes`, nên stream chỉ tồn tại **đúng một
+lần**, ngay cạnh các row đang chào nó.
+
+Bản đầu của feature này giữ **một catalogue thứ hai** bên trong player, key theo cùng id. Ngay khi id
+bên Home đổi (`wild-frontier` → `video-wild-tiger`), mọi lần bấm đều mở ra một player không resolve
+nổi chính item của nó — và không có gì trong widget tree bắt được lỗi đó. Hai danh sách của cùng một
+thứ thì luôn lệch nhau; một danh sách thì không.
+
+Vì vậy `HomeCatalogPlaybackRepository` phụ thuộc vào `HomeRepository` — **interface domain**, không
+phải implementation — nên player không biết gì về DTO, DataSource hay chỗ catalogue thực sự nằm.
+
+Quy tắc map, trong [`home_item_playback_mapper.dart`](../lib/features/player/data/mapper/home_item_playback_mapper.dart):
+
+| Thuộc tính player | Lấy từ | Ghi chú |
+|---|---|---|
+| `streamUrl` | `videoUrl`, fallback `trailerUrl` | Trailer chỉ là phương án chống màn hình đen. Không bao giờ ngược lại — người xem bấm play là muốn xem phim. |
+| `isLive` | `kind == channel` | Suy ra, không lưu cờ riêng: một row render là channel và một stream hành xử như live thì không thể lệch nhau. |
+| item để phát | chính nó, hoặc episode đầu tiên | Bấm vào series nghĩa là "bắt đầu xem" → episode 1. Resolve ở đây nên player không cần biết series là gì. |
+| `id` | id của item **thực sự đang phát** | Với series thì đây là id của episode, nhờ vậy "đang phát cái gì" trả lời được chỉ từ state. |
+
+Tìm kiếm là **depth-first**, vì episode cũng là item của catalogue: id đi qua navigation có thể là id
+của một episode, nên nếu chỉ quét item ở tầng đầu thì sẽ fail đúng vào những item mà series tồn tại
+để chào.
+
+Khi có API thật, class này là seam: một `CatalogRepository` phục vụ playback theo id sẽ thay thế nó,
+và **không có gì phía trên `PlaybackRepository` phải sửa** — không ViewModel, không screen. Tên class
+nói rõ dữ liệu hôm nay đến từ đâu chính là để việc thay thế đó hiển nhiên.
+
 ### Luồng từ Home tới Player
 
 ```mermaid
 sequenceDiagram
-    participant H as HomeRoute
+    participant H as HomeScreen
     participant R as GoRouter
     participant PR as PlayerRoute
     participant VM as PlayerViewModel
-    participant Repo as PlaybackRepository
+    participant Repo as HomeCatalogPlaybackRepository
+    participant Home as HomeRepository
     participant C as StreamPlayerController
     participant N as Native host
 
-    H->>R: push('/player/wild-frontier')
+    H->>R: push('/player/video-wild-tiger')
     R->>PR: build(itemId)
     PR->>VM: ref.watch(playerViewModelProvider(itemId))
     VM->>Repo: getPlaybackItem(itemId)
-    Repo-->>VM: PlaybackItem (streamUrl đã parse)
+    Repo->>Home: getHomeSections()
+    Home-->>Repo: sections (đã có videoUrl, kind, episodes)
+    Repo-->>VM: PlaybackItem (streamUrl đã parse, isLive đã suy ra)
     VM->>C: StreamPlayerController.create()
     C->>N: initialize() rồi create(config)
     N-->>C: playerId
@@ -165,9 +214,18 @@ sequenceDiagram
     VM-->>PR: AsyncData(PlayerUiState mới)
 ```
 
-`HomeItem` **không** mang `streamUrl` — không có gì trên Home phát video — nên chỉ `id` được truyền
-đi và feature `player` tự resolve. Nhờ vậy Home không biết gì về playback, điều này quan trọng vì sau
-này sẽ có nhiều màn hình khác cũng mở player.
+Ba chi tiết trong luồng này đều có chủ ý:
+
+- **Chỉ `id` đi qua navigation.** Truyền cả `HomeItem` qua `extra` sẽ chạy được hôm nay và vỡ ngay
+  lần đầu có deep link mở player trực tiếp — lúc đó không có object nào để truyền.
+- **`push`, không `go`.** Back trên remote quay lại đúng row cũ với focus còn nguyên; `go` sẽ dựng
+  lại Home từ đầu và mất chỗ đang đứng.
+- **Resolve item **trước** khi tạo player.** Nếu catalogue miss, `playerControllerProvider` không bao
+  giờ được watch, nên không có decoder nào bị chiếm cho một màn hình sắp render lỗi.
+
+Route của player nằm **ngoài `ShellRoute`** trong
+[`app_router.dart`](../lib/app/router/app_router.dart): playback là full-screen, nếu đặt trong shell
+thì nó sẽ render bên dưới top bar và top bar sẽ liên tục giành focus D-pad khỏi các control.
 
 `loadAndPlay` không `await` trong `build`: nó hoàn thành khi native đã nhận lệnh, không phải khi có
 frame đầu tiên. Await nó sẽ giữ provider ở `AsyncLoading` quá lâu, trong khi màn hình đã có thể vẽ
@@ -248,11 +306,44 @@ Một số quyết định giữ nguyên từ bản Compose và lý do:
   rộng bao nhiêu; row có spacer sẽ căn giữa *khoảng trống* giữa hai cluster, làm nút play trôi đi mỗi
   khi nút settings xuất hiện hoặc mất đi.
 
+### Đối chiếu với `spec/player.md`
+
+`../steam_tv/spec/player.md` là hợp đồng sản phẩm, không phụ thuộc framework — theo `AGENT.md` thì
+nó, chứ không phải file Compose, mới là nguồn chuẩn. Bản port này theo spec ở những điểm sau:
+
+| Yêu cầu của spec | Ở đây |
+|---|---|
+| `isSeekable` suy ra từ `duration`, **không** dùng cờ riêng | `PlayerUiState.isSeekable => duration > 0`. Cờ `isLive` của catalogue chỉ dùng cho badge `LIVE` và toggle live-edge, vì mọi item đều báo duration 0 lúc đang load |
+| Live: seek bar bị thay bằng **một label elapsed** | `_ElapsedLabel` trong `player_controller_chrome.dart` |
+| Live: không có rewind/forward | `_TransportCluster` gate theo `isSeekable` |
+| Down từ seek bar về **control vừa dùng** | `_focusLastRowControl()`; các `FocusNode` của control row tự ghi lại, `progress` bị loại trừ |
+| Down từ control row **không làm gì** | Surface hết focusable khi chrome hiện (`canRequestFocus`), nên không có gì bên dưới để nhảy tới |
+| Đúng một group giữ focus, có thứ tự ưu tiên | `resolvePlayerFocusOwner` — hàm thuần, có test riêng |
+| Focus phát ra ở **một chỗ** | Chỉ `PlayerScreen` gọi `requestFocus`; không widget con nào tự xin |
+| Phím mở chrome không kích hoạt control | Surface ăn luôn key-down và trả `.handled` |
+| Chrome tự ẩn sau ~5s, **chỉ khi đang phát** | `_restartAutoHide()` return sớm nếu `!isPlaying` |
+| Trạng thái focus của control theo *chính nó*, không theo con | `InkWell.onFocusChange` (không phải `hasFocus` của subtree) |
+| Retry = prepare rồi play, đúng thứ tự | `StreamPlayerController.retry()` |
+| Title tối đa 2 dòng | `maxLines: 2` |
+
 ### Chưa port
 
-Metadata section, comments section, dải preview frame khi scrub, và player dọc (portrait). Cả bốn cần
-`PlayerDetailsRepository` — dữ liệu nội dung mà app Flutter chưa có. Khi có API, chúng là feature
-riêng ghép vào chỗ `onOpenSettings` đang ghép settings.
+| Của spec | Vì sao |
+|---|---|
+| Pill `Description` + metadata section | Cần dữ liệu nội dung (`collectionTitle`, `releaseYear`, cast…) mà app Flutter chưa có |
+| Nút Comment + comments section | Cần API comment |
+| Dải preview frame khi scrub (`seekPreview`) | Cần frame stills từ catalogue |
+| Focus group `Parked` | Chỉ cần khi có section transition có animation; settings panel hiện tại mở/đóng ngay |
+| Dòng phụ dưới title (`collectionTitle • releaseYear`) | Cùng lý do với metadata; hiện dùng `description` thay chỗ |
+| Player dọc (`vertical-player.md`) | Chưa có surface nào cần tới |
+
+Khi có API nội dung, cả nhóm trên ghép vào đúng chỗ mà settings đang ghép (`onOpenSettings`), và
+`PlayerControlTarget` mở rộng thêm `description` với `comment`.
+
+Spec cũng tự ghi một **known deviation** mà bản port này thừa hưởng: phụ đề do surface native vẽ có
+thể nằm dưới control row khi chrome hiện. Cách sửa là truyền `showSubtitles: false` cho
+`StreamPlayerView` trong lúc chrome hiện, hoặc tự vẽ phụ đề từ `StreamPlayerState.cues` — nhưng
+`cues` chỉ có trên Android (xem `capabilities`), nên hiện chưa làm.
 
 ## 6. Capabilities — câu trả lời trung thực cho hai nền tảng không đều nhau
 
@@ -309,24 +400,33 @@ trong `_toggle`.
 
 ## 8. Kiểm tra
 
-```bash
-# package
-cd ../flutter_stream_player/packages/stream_player_platform_interface && flutter pub get && flutter test
-cd ../stream_player                                                   && flutter pub get && flutter test
-cd ../stream_player_tizen                                             && flutter pub get && flutter test
+Đã chạy xanh trên Flutter 3.47.2 / Dart 3.13.2, JDK 21, AGP 9.3.2, Gradle 9.7.1.
 
-# app: bắt buộc chạy build_runner trước vì player dùng provider generated
+```bash
+# 1. Engine phải được publish trước, mọi thứ Android mới resolve được
+cd ../android_stream_player && ./gradlew :stream-player:publishToMavenLocal
+
+# 2. Package (71 test)
+cd ../flutter_stream_player/packages/stream_player_platform_interface && flutter pub get && flutter analyze && flutter test
+cd ../stream_player                                                   && flutter pub get && flutter analyze && flutter test
+cd ../stream_player_tizen                                             && flutter pub get && flutter analyze && flutter test
+
+# 3. App (81 test). build_runner là bắt buộc vì player dùng provider generated
 cd ../../../flutter-steam-tv
 flutter pub get
-dart run build_runner build --delete-conflicting-outputs
+dart run build_runner build
 dart format .
 flutter analyze
 flutter test
 
-# Kotlin host
-cd ../android_stream_player && ./gradlew :stream-player:publishToMavenLocal
-cd ../flutter-steam-tv/android && ./gradlew :stream_player_android:testDebugUnitTest
+# 4. Kotlin (10 test) + build APK — đây mới là thứ chứng minh cả cầu nối compile được
+cd android && ./gradlew :stream_player_android:testDebugUnitTest
+cd .. && flutter build apk --debug --target-platform android-arm64
 ```
+
+**Tizen chưa verify được end-to-end.** Phần Dart analyze sạch, test pass, compile được với
+`video_player 2.14.0` — nhưng máy này chưa cài `flutter-tizen` lẫn Tizen SDK (dòng PATH trong
+`.zshrc` trỏ tới thư mục không tồn tại), nên chưa có gì từng chạy trên TV thật.
 
 Chạy trên thiết bị:
 
@@ -345,3 +445,27 @@ Năm preview của player nằm trong
 [`player_screen_preview.dart`](../lib/features/player/presentation/view/player_screen_preview.dart):
 playing, buffering, live, error, và 1080p. Surface trong preview là một khối màu — preview không được
 gọi plugin native, và `PlayerScreen` nhận surface dưới dạng widget chính vì lý do đó.
+
+### Test nào canh cái gì
+
+| File | Canh |
+|---|---|
+| [`home_catalog_playback_repository_test.dart`](../test/features/player/data/repository/home_catalog_playback_repository_test.dart) | Resolve từ catalogue: video, channel (live), episode theo id riêng, series → episode 1, fallback trailer, và **một test đi hết catalogue thật của Home** để id lệch không thể xảy ra âm thầm nữa |
+| [`player_view_model_test.dart`](../test/features/player/presentation/view_model/player_view_model_test.dart) | Cả luồng mở player với host giả: resolve → create → load/prepare/play, thứ tự "resolve trước create", gộp fact thành state, live resume ở live edge, và `close()` khi rời màn hình |
+| [`player_focus_owner_test.dart`](../test/features/player/presentation/model/player_focus_owner_test.dart) | Thứ tự ưu tiên của người giữ focus |
+| [`player_ui_state_test.dart`](../test/features/player/presentation/model/player_ui_state_test.dart) | Seekability, clamp position, copy lỗi, suy ra menu cài đặt |
+| [`player_screen_test.dart`](../test/features/player/presentation/view/player_screen_test.dart) | Điều khiển bằng remote: hiện chrome, không kích hoạt control bằng chính phím mở, auto-hide, error panel |
+
+## 9. Ba điểm nối dễ mất khi merge
+
+Luồng mở player nằm ở ba file **không** thuộc feature `player`, nên một branch khác sửa cùng chỗ sẽ
+lặng lẽ vô hiệu hoá nó — đã xảy ra một lần khi branch home-screen merge vào main:
+
+| File | Dòng cần có | Mất thì sao |
+|---|---|---|
+| [`main.dart`](../lib/main.dart) | `registerStreamPlayerHost();` | `StreamPlayerController.create()` ném `StateError` ngay lần bấm play đầu tiên |
+| [`app_router.dart`](../lib/app/router/app_router.dart) | `GoRoute(path: PlayerRoute.path, ...)` **ngoài** `ShellRoute` | `push('/player/...')` không match route nào |
+| [`home_screen.dart`](../lib/features/home/presentation/view/home_screen.dart) | `onItemPressed: (item) => _play(context, item)` | Bấm item mở dialog/không làm gì thay vì mở player |
+
+Sau mỗi lần merge có xung đột ở ba file này, cách kiểm nhanh nhất là chạy
+`flutter test test/features/player/` rồi mở app bấm thử một item.

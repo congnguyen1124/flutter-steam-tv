@@ -11,7 +11,11 @@ import 'package:flutter_steam_tv/features/player/presentation/model/player_ui_st
 /// is offered at all — a retry for a forbidden stream only invites the viewer to fail twice.
 final class PlayerErrorPanel extends StatelessWidget {
   /// The error panel for [error].
-  const PlayerErrorPanel({required this.error, required this.onRetry, super.key});
+  const PlayerErrorPanel({
+    required this.error,
+    required this.onRetry,
+    super.key,
+  });
 
   /// What went wrong, already turned into copy by the screen's state.
   final PlayerErrorUiItem error;

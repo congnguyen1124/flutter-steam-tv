@@ -17,20 +17,21 @@ import 'package:stream_player/stream_player.dart';
 Widget playerPlayingPreview() => _preview(_state(isPlaying: true));
 
 @Preview(name: 'Player - buffering', group: 'Player', size: Size(1280, 720))
-Widget playerBufferingPreview() =>
-    _preview(_state(playbackState: .buffering));
+Widget playerBufferingPreview() => _preview(_state(playbackState: .buffering));
 
 @Preview(name: 'Player - live', group: 'Player', size: Size(1280, 720))
 Widget playerLivePreview() => _preview(_state(isPlaying: true, isLive: true));
 
 @Preview(name: 'Player - error', group: 'Player', size: Size(1280, 720))
 Widget playerErrorPreview() => _preview(
-  _state(
-    error: const StreamPlayerNoNetworkError(message: 'preview'),
-  ),
+  _state(error: const StreamPlayerNoNetworkError(message: 'preview')),
 );
 
-@Preview(name: 'Player - playing 1080p', group: 'Player', size: Size(1920, 1080))
+@Preview(
+  name: 'Player - playing 1080p',
+  group: 'Player',
+  size: Size(1920, 1080),
+)
 Widget playerPlayingFullHdPreview() => _preview(_state(isPlaying: true));
 
 Widget _preview(PlayerUiState uiState) => MaterialApp(
@@ -114,7 +115,12 @@ const _previewAudioTracks = [
 ];
 
 const _previewTextTracks = [
-  StreamPlayerTextTrack(id: 'en', language: 'en', label: 'English', isSelected: false),
+  StreamPlayerTextTrack(
+    id: 'en',
+    language: 'en',
+    label: 'English',
+    isSelected: false,
+  ),
 ];
 
 void _noop() {}
