@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_steam_tv/core/design_system/stream_tv_colors.dart';
 import 'package:flutter_steam_tv/features/player/domain/model/playback_item.dart';
 import 'package:flutter_steam_tv/features/player/presentation/model/player_ui_state.dart';
 import 'package:flutter_steam_tv/features/player/presentation/view/player_screen.dart';
 import 'package:flutter_steam_tv/features/player/presentation/widget/player_buffering_indicator.dart';
 import 'package:flutter_steam_tv/features/player/presentation/widget/player_control_row.dart';
 import 'package:flutter_steam_tv/features/player/presentation/widget/player_error_panel.dart';
+import 'package:flutter_steam_tv/features/player/presentation/widget/player_section_panel.dart';
 import 'package:flutter_steam_tv/features/player/presentation/widget/player_seek_bar.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:stream_player/stream_player.dart';
@@ -200,6 +202,60 @@ void main() {
       expect(find.text('Quality'), findsOneWidget);
       expect(find.text('Auto'), findsOneWidget);
       expect(find.text('Audio'), findsOneWidget);
+    });
+
+    testWidgets('a category row stacks its value under its name', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true, hasTracks: true)));
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Settings'));
+      await tester.pumpAndSettle();
+
+      final name = tester.getRect(find.text('Quality'));
+      final value = tester.getRect(find.text('Auto'));
+
+      // Stacked, not trailing. A long rendition label ellipsises away at this panel width, and the
+      // value is the half the viewer opened the panel to check.
+      expect(value.top, greaterThan(name.top));
+      expect(value.left, closeTo(name.left, 0.5));
+    });
+
+    testWidgets('the option in effect stays marked once focus leaves it', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true, hasTracks: true)));
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Settings'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Quality'));
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+
+      // The tick alone is easy to miss at three metres. Without the fill and hairline, a viewer who
+      // has moved focus down the list has no way to tell which rendition is actually playing.
+      final decorations = tester
+          .widgetList<DecoratedBox>(
+            find.descendant(
+              of: find.byType(PlayerSectionPanel),
+              matching: find.byType(DecoratedBox),
+            ),
+          )
+          .map((box) => box.decoration)
+          .whereType<BoxDecoration>();
+
+      expect(
+        decorations.where(
+          (d) =>
+              d.color == StreamTvColors.playerSettingSelected &&
+              d.border != null,
+        ),
+        isNotEmpty,
+      );
     });
 
     testWidgets('a category opens its own panel over the settings list', (

@@ -223,6 +223,29 @@ final class _FocusableScrollState extends State<_FocusableScroll> {
   }
 }
 
+/// Layout metrics shared by the settings rows.
+///
+/// One object rather than numbers inlined at each use, because the root list and the option list
+/// have to agree on spacing and radius for the two levels to read as one component when a child
+/// panel slides over its parent.
+final class _SettingMetrics {
+  const _SettingMetrics._();
+
+  static const double itemRadius = 8;
+  static const double rootItemHeight = 54;
+  static const double optionItemHeight = 42;
+  static const double iconSize = 20;
+  static const double trailingIconSize = 14;
+  static const double itemSpacing = 4;
+  static const double labelSize = 15;
+  static const double labelHeight = 20 / 15;
+  static const double captionSize = 12;
+  static const double captionHeight = 16 / 12;
+
+  /// How far the caption is dimmed against the row's own foreground.
+  static const double inactiveCaptionAlpha = 0.6;
+}
+
 /// One row per setting category, each showing the option in effect and opening its own panel.
 ///
 /// A list of categories rather than every option flattened into one panel: with three categories
@@ -245,10 +268,10 @@ final class _SettingsBody extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
       children: [
         for (final (index, category) in settings.categories.indexed)
-          _SectionRow(
+          _SettingRootRow(
             iconAsset: _iconFor(category.kind),
             label: _labelFor(category.kind),
-            trailing: category.selectedLabel,
+            selectedLabel: category.selectedLabel,
             // The first row takes focus, so the panel is usable the instant it settles.
             autofocus: isFocusEnabled && index == 0,
             onPressed: () => onOpenSection(_sectionFor(category.kind)),
@@ -301,7 +324,7 @@ final class _OptionsBody extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
       children: [
         for (final (index, option) in options.indexed)
-          _SectionRow(
+          _SettingOptionRow(
             label: option.label,
             isSelected: option.isSelected,
             // The option in effect takes focus, so the viewer starts on what is playing rather
@@ -323,95 +346,207 @@ final class _OptionsBody extends StatelessWidget {
   }
 }
 
-/// One focusable row: optional leading icon, label, and either a trailing value or a tick.
-final class _SectionRow extends StatefulWidget {
-  const _SectionRow({
+/// A category row: icon, name, the value in effect underneath, and a chevron into its panel.
+///
+/// The value sits **below** the name rather than trailing it. A long rendition label — a dubbing
+/// track's full language name, say — pushes a trailing value into an ellipsis at exactly the width
+/// this panel has, and the value is the half the viewer is checking. Stacked, both fit.
+///
+/// The chevron is what separates this row from an option row at a glance: one opens a list, the
+/// other commits a choice, and on a remote there is no hover state to disambiguate them.
+final class _SettingRootRow extends StatelessWidget {
+  const _SettingRootRow({
+    required this.iconAsset,
     required this.label,
+    required this.selectedLabel,
+    required this.autofocus,
     required this.onPressed,
-    this.iconAsset,
-    this.trailing,
-    this.isSelected = false,
-    this.autofocus = false,
+  });
+
+  final String iconAsset;
+  final String label;
+  final String selectedLabel;
+  final bool autofocus;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SettingSurface(
+      autofocus: autofocus,
+      onPressed: onPressed,
+      minHeight: _SettingMetrics.rootItemHeight,
+      builder: (foreground) => Row(
+        children: [
+          SvgPicture.asset(
+            iconAsset,
+            width: _SettingMetrics.iconSize,
+            height: _SettingMetrics.iconSize,
+            colorFilter: ColorFilter.mode(foreground, BlendMode.srcIn),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: _SettingMetrics.labelSize,
+                    height: _SettingMetrics.labelHeight,
+                  ),
+                ),
+                Text(
+                  selectedLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: foreground.withValues(
+                      alpha: _SettingMetrics.inactiveCaptionAlpha,
+                    ),
+                    fontSize: _SettingMetrics.captionSize,
+                    height: _SettingMetrics.captionHeight,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          SvgPicture.asset(
+            AppAssets.chevronRightIcon,
+            width: _SettingMetrics.trailingIconSize,
+            height: _SettingMetrics.trailingIconSize,
+            colorFilter: ColorFilter.mode(foreground, BlendMode.srcIn),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One selectable option, ticked when it is the value in effect.
+final class _SettingOptionRow extends StatelessWidget {
+  const _SettingOptionRow({
+    required this.label,
+    required this.isSelected,
+    required this.autofocus,
+    required this.onPressed,
   });
 
   final String label;
-  final VoidCallback onPressed;
-  final String? iconAsset;
-  final String? trailing;
   final bool isSelected;
   final bool autofocus;
+  final VoidCallback onPressed;
 
   @override
-  State<_SectionRow> createState() => _SectionRowState();
+  Widget build(BuildContext context) {
+    return _SettingSurface(
+      autofocus: autofocus,
+      onPressed: onPressed,
+      isCurrentValue: isSelected,
+      minHeight: _SettingMetrics.optionItemHeight,
+      builder: (foreground) => Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: foreground,
+                fontSize: _SettingMetrics.labelSize,
+                height: _SettingMetrics.labelHeight,
+              ),
+            ),
+          ),
+          // A tick rather than a radio dot: adaptive selection can move the choice underneath the
+          // viewer, and a tick reads as "this is what is playing" rather than "this is what you
+          // chose".
+          if (isSelected)
+            SvgPicture.asset(
+              AppAssets.checkIcon,
+              width: _SettingMetrics.trailingIconSize,
+              height: _SettingMetrics.trailingIconSize,
+              colorFilter: ColorFilter.mode(foreground, BlendMode.srcIn),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
-final class _SectionRowState extends State<_SectionRow> {
+/// The focusable chip both settings rows are drawn on.
+///
+/// Three states, and the middle one is the one worth keeping: focused inverts to a white fill with
+/// dark content; the row holding the **value in effect** takes a faint fill and a hairline; every
+/// other row is transparent with dimmed content. Without the middle state a viewer who has moved
+/// focus away cannot tell which rendition is playing — the tick alone is easy to miss at three
+/// metres, and it is the only other signal.
+///
+/// The chip never grows on focus. These rows are 4 apart; a scaled row would overlap its neighbour.
+final class _SettingSurface extends StatefulWidget {
+  const _SettingSurface({
+    required this.builder,
+    required this.onPressed,
+    required this.minHeight,
+    required this.autofocus,
+    this.isCurrentValue = false,
+  });
+
+  /// Builds the row content against the foreground colour its current state resolves to.
+  final Widget Function(Color foreground) builder;
+
+  final VoidCallback onPressed;
+  final double minHeight;
+  final bool autofocus;
+  final bool isCurrentValue;
+
+  @override
+  State<_SettingSurface> createState() => _SettingSurfaceState();
+}
+
+final class _SettingSurfaceState extends State<_SettingSurface> {
   bool _hasFocus = false;
 
   @override
   Widget build(BuildContext context) {
-    final foreground = _hasFocus
-        ? StreamTvColors.playerBackground
-        : StreamTvColors.playerForeground;
+    final foreground = switch ((_hasFocus, widget.isCurrentValue)) {
+      (true, _) => StreamTvColors.playerBackground,
+      (false, true) => StreamTvColors.playerForeground,
+      (false, false) => StreamTvColors.playerMutedForeground,
+    };
+    final background = switch ((_hasFocus, widget.isCurrentValue)) {
+      (true, _) => StreamTvColors.playerForeground,
+      (false, true) => StreamTvColors.playerSettingSelected,
+      (false, false) => Colors.transparent,
+    };
+    // Only on the unfocused current value: a focused row is already the brightest thing in the
+    // panel, and an outline on top of a white fill just muddies its edge.
+    final border = !_hasFocus && widget.isCurrentValue
+        ? Border.all(color: StreamTvColors.playerSettingSelectedBorder)
+        : null;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.only(bottom: _SettingMetrics.itemSpacing),
       child: InkWell(
         autofocus: widget.autofocus,
         onTap: widget.onPressed,
         onFocusChange: (hasFocus) => setState(() => _hasFocus = hasFocus),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(_SettingMetrics.itemRadius),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: _hasFocus
-                ? StreamTvColors.playerForeground
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            color: background,
+            border: border,
+            borderRadius: BorderRadius.circular(_SettingMetrics.itemRadius),
           ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            child: Row(
-              children: [
-                if (widget.iconAsset case final iconAsset?) ...[
-                  SvgPicture.asset(
-                    iconAsset,
-                    width: 18,
-                    height: 18,
-                    colorFilter: ColorFilter.mode(foreground, BlendMode.srcIn),
-                  ),
-                  const SizedBox(width: 10),
-                ],
-                Expanded(
-                  child: Text(
-                    widget.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: foreground, fontSize: 15),
-                  ),
-                ),
-                if (widget.trailing case final trailing?)
-                  Text(
-                    trailing,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: foreground.withValues(
-                        alpha: _hasFocus ? 0.7 : 0.6,
-                      ),
-                      fontSize: 14,
-                    ),
-                  ),
-                // A tick rather than a radio dot: adaptive selection can move the choice underneath
-                // the viewer, and a tick reads as "this is what is playing" rather than "this is
-                // what you chose".
-                if (widget.isSelected)
-                  SvgPicture.asset(
-                    AppAssets.checkIcon,
-                    width: 16,
-                    height: 16,
-                    colorFilter: ColorFilter.mode(foreground, BlendMode.srcIn),
-                  ),
-              ],
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: widget.minHeight),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Center(child: widget.builder(foreground)),
             ),
           ),
         ),
