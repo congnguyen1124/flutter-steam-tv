@@ -168,7 +168,7 @@ final class _PairingPanel extends StatelessWidget {
             const SizedBox(height: 14),
             StreamTvQrCode(
               content: pairingUrl,
-              size: 124,
+              size: 100,
               semanticLabel:
                   'QR code that opens StreamTV sign-in in the mobile app',
             ),

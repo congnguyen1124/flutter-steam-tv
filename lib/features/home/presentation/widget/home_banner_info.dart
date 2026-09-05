@@ -64,9 +64,9 @@ final class HomeBannerInfo extends StatelessWidget {
                 padding: const .symmetric(horizontal: 18, vertical: 10),
                 decoration: BoxDecoration(
                   color: isFocused
-                      ? StreamTvColors.primary
+                      ? StreamTvColors.surfaceFocused
                       : Colors.white.withValues(alpha: 0.14),
-                  borderRadius: .circular(5),
+                  borderRadius: .circular(16),
                 ),
                 child: Row(
                   mainAxisSize: .min,
