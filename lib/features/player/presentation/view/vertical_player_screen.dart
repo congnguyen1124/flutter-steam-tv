@@ -28,9 +28,17 @@ import 'package:flutter_steam_tv/features/player/presentation/widget/vertical_pl
 ///
 /// ## Layout
 ///
-/// Three regions across the panel: the ambient gradient, a 9:16 stage nudged toward the leading
-/// edge, and the interaction panel in the width the stage leaves. The stage is sized from the panel
-/// height rather than the video, so a portrait video of any resolution lands in the same box.
+/// Three regions across the panel: the ambient gradient, a 9:16 stage, and the interaction panel in
+/// the width the stage leaves. The stage is sized from the panel height rather than the video, so a
+/// portrait video of any resolution lands in the same box.
+///
+/// The stage is **centred on the panel and then nudged toward the leading edge**, not aligned to
+/// it. Pinning it left is the obvious reading of "leave room for the panel" and it is wrong: it
+/// strands the portrait frame against the bezel with the whole gradient trailing off to one side,
+/// and the composition stops looking deliberate. Centre-then-offset keeps the video near the
+/// optical centre of the screen — where a viewer sitting several metres back is already looking —
+/// while still opening a column for the panel. Matches OttClouds' `VerticalPlayerScreen`, which
+/// centres its pager and offsets it by [_stageLeadingOffset].
 final class VerticalPlayerScreen extends StatefulWidget {
   /// The portrait player for [uiState].
   const VerticalPlayerScreen({
@@ -80,6 +88,12 @@ final class VerticalPlayerScreen extends StatefulWidget {
   @override
   State<VerticalPlayerScreen> createState() => _VerticalPlayerScreenState();
 }
+
+/// How far the centred stage is nudged toward the leading edge.
+const double _stageLeadingOffset = 24;
+
+/// The clear space kept between the stage and the interaction panel.
+const double _stageToPanelGap = 48;
 
 final class _VerticalPlayerScreenState extends State<VerticalPlayerScreen> {
   final Map<VerticalPlayerControlTarget, FocusNode> _controlNodes = {
@@ -151,30 +165,47 @@ final class _VerticalPlayerScreenState extends State<VerticalPlayerScreen> {
                       VerticalPlayerStage.verticalPadding * 2;
                   final stageWidth =
                       stageHeight * VerticalPlayerStage.aspectRatio;
-                  // Whatever the stage leaves, floored so a narrow panel still fits its controls.
-                  final panelWidth = (constraints.maxWidth - stageWidth - 48)
-                      .clamp(
-                        VerticalPlayerInteractionPanel.minWidth,
-                        constraints.maxWidth,
-                      )
-                      .toDouble();
+                  // Half of what the stage leaves, widened by the same amount the stage moved, so
+                  // the gap between the two stays put. Floored so a narrow panel still fits its
+                  // controls.
+                  final panelWidth =
+                      ((constraints.maxWidth - stageWidth - _stageToPanelGap) /
+                                  2 +
+                              _stageLeadingOffset)
+                          .clamp(
+                            VerticalPlayerInteractionPanel.minWidth,
+                            constraints.maxWidth,
+                          )
+                          .toDouble();
 
-                  return Row(
+                  return Stack(
+                    fit: StackFit.expand,
                     children: [
-                      const SizedBox(width: 48),
-                      SizedBox(
-                        width: stageWidth,
-                        height: stageHeight,
-                        child: VerticalPlayerStage(
-                          uiState: uiState,
-                          videoSurface: widget.videoSurface,
-                          focusNode: _stageNode,
-                          canRequestFocus: isBaseFocusable,
-                          onTogglePlayPause: widget.onTogglePlayPause,
-                          onMoveToPanel: _focusFirstAction,
+                      // Centred within a box narrowed on the trailing edge, which lands the stage
+                      // exactly `_stageLeadingOffset` left of the true centre. Done with padding
+                      // rather than a transform because the child hosts a platform view, and
+                      // transforming one of those is a well-known source of compositing trouble.
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          right: _stageLeadingOffset * 2,
+                        ),
+                        child: Center(
+                          child: SizedBox(
+                            width: stageWidth,
+                            height: stageHeight,
+                            child: VerticalPlayerStage(
+                              uiState: uiState,
+                              videoSurface: widget.videoSurface,
+                              focusNode: _stageNode,
+                              canRequestFocus: isBaseFocusable,
+                              onTogglePlayPause: widget.onTogglePlayPause,
+                              onMoveToPanel: _focusFirstAction,
+                            ),
+                          ),
                         ),
                       ),
-                      Expanded(
+                      Align(
+                        alignment: Alignment.centerRight,
                         child: SizedBox(
                           width: panelWidth,
                           child: VerticalPlayerInteractionPanel(

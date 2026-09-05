@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_steam_tv/core/design_system/stream_tv_colors.dart';
 import 'package:flutter_steam_tv/features/player/domain/model/playback_item.dart';
 import 'package:flutter_steam_tv/features/player/presentation/model/player_ui_state.dart';
 import 'package:flutter_steam_tv/features/player/presentation/view/vertical_player_screen.dart';
@@ -199,6 +200,101 @@ void main() {
 
       // Panels slide in beside a stage the viewer can walk back to, so Left is the natural way out.
       expect(find.text('About'), findsNothing);
+    });
+  });
+
+  group('stage placement', () {
+    testWidgets('the stage is centred, nudged toward the leading edge', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true)));
+      await tester.pumpAndSettle();
+
+      final screen = tester.getRect(find.byType(VerticalPlayerScreen));
+      final stage = tester.getRect(find.byType(VerticalPlayerStage));
+
+      // Not pinned to the leading edge. Aligning it there strands the portrait frame against the
+      // bezel with the whole gradient trailing off one side; the reference centres it and offsets
+      // it by 24 to open a column for the panel.
+      expect(stage.center.dx, closeTo(screen.center.dx - 24, 0.5));
+      expect(stage.left, greaterThan(48));
+    });
+
+    testWidgets('the stage fills the panel height bar a hairline', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true)));
+      await tester.pumpAndSettle();
+
+      final screen = tester.getRect(find.byType(VerticalPlayerScreen));
+      final stage = tester.getRect(find.byType(VerticalPlayerStage));
+
+      expect(stage.height, closeTo(screen.height - 8, 0.5));
+      expect(stage.width / stage.height, closeTo(9 / 16, 0.001));
+    });
+  });
+
+  group('stage focus border', () {
+    Border? stageBorder(WidgetTester tester) {
+      final containers = tester.widgetList<AnimatedContainer>(
+        find.descendant(
+          of: find.byType(VerticalPlayerStage),
+          matching: find.byType(AnimatedContainer),
+        ),
+      );
+      if (containers.isEmpty) {
+        return null;
+      }
+      return (containers.first.decoration! as BoxDecoration).border as Border?;
+    }
+
+    testWidgets('there is no border while the stage does not hold focus', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true)));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+
+      expect(focused(), 'vertical-player-like');
+      expect(stageBorder(tester), isNull);
+    });
+
+    testWidgets('it announces focus at full strength, then softens', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true)));
+      await tester.pumpAndSettle();
+
+      expect(stageBorder(tester)?.top.color, StreamTvColors.playerForeground);
+
+      // Two seconds bright, then a second of fade. Pumping past both leaves the settled colour.
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump(const Duration(seconds: 1));
+
+      // The stage holds focus for most of a viewing session, so a permanent 6-unit white frame
+      // would sit around every short.
+      expect(
+        stageBorder(tester)?.top.color,
+        StreamTvColors.playerFocusBorderSoftened,
+      );
+    });
+
+    testWidgets('a select press restarts the countdown', (tester) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true)));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pump(const Duration(seconds: 1));
+      expect(
+        stageBorder(tester)?.top.color,
+        StreamTvColors.playerFocusBorderSoftened,
+      );
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pump();
+
+      // A press is exactly when the viewer wants confirming they were aiming at the right thing.
+      expect(stageBorder(tester)?.top.color, StreamTvColors.playerForeground);
     });
   });
 
