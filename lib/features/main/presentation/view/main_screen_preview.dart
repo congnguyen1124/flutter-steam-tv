@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/widget_previews.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_steam_tv/core/design_system/stream_tv_theme.dart';
 import 'package:flutter_steam_tv/features/main/presentation/view/main_screen.dart';
 import 'package:flutter_steam_tv/features/profile/presentation/view/profile_route.dart';
@@ -13,7 +14,10 @@ import 'package:flutter_steam_tv/features/search/presentation/view/search_screen
   size: Size(1280, 720),
 )
 Widget mainSearchPreview() {
-  return _preview(path: SearchRoute.path, child: const SearchScreen());
+  return _preview(
+    path: SearchRoute.path,
+    child: ProviderScope(child: SearchScreen(onItemPressed: (_) {})),
+  );
 }
 
 @Preview(
