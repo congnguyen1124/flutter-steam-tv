@@ -163,6 +163,106 @@ void main() {
     });
   });
 
+  group('sections', () {
+    testWidgets('settings opens a list of categories, not every option at once', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true, hasTracks: true)));
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.bySemanticsLabel('Settings'));
+      await tester.pumpAndSettle();
+
+      // One row per category with the option in effect beside it. Flattening every option into one
+      // panel makes the viewer scroll past the thing they came for.
+      expect(find.text('Settings'), findsOneWidget);
+      expect(find.text('Quality'), findsOneWidget);
+      expect(find.text('Auto'), findsOneWidget);
+      expect(find.text('Audio'), findsOneWidget);
+    });
+
+    testWidgets('a category opens its own panel over the settings list', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true, hasTracks: true)));
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Settings'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Quality'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('1080p'), findsOneWidget);
+      expect(find.text('720p'), findsOneWidget);
+    });
+
+    testWidgets(
+      'back from a category returns to the settings list, not the video',
+      (tester) async {
+        await tester.pumpWidget(_app(_state(isPlaying: true, hasTracks: true)));
+        await tester.sendKeyEvent(LogicalKeyboardKey.select);
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Settings'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Quality'));
+        await tester.pumpAndSettle();
+
+        await tester.binding.handlePopRoute();
+        await tester.pumpAndSettle();
+
+        // The whole point of the stack: the parent panel was never rebuilt, so it comes back exactly
+        // as it was rather than the viewer being dropped at the video.
+        expect(find.text('720p'), findsNothing);
+        expect(find.text('Quality'), findsOneWidget);
+        expect(find.byType(PlayerControlRow), findsNothing);
+      },
+    );
+
+    testWidgets('back from the settings list returns to the chrome', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true, hasTracks: true)));
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Settings'));
+      await tester.pumpAndSettle();
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(PlayerControlRow), findsOneWidget);
+    });
+
+    testWidgets('the description pill opens metadata', (tester) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true)));
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Description'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('About'), findsOneWidget);
+      expect(find.text('A journey into untouched landscapes'), findsOneWidget);
+    });
+
+    testWidgets('left does not dismiss a landscape panel', (tester) async {
+      await tester.pumpWidget(_app(_state(isPlaying: true, hasTracks: true)));
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      await tester.pumpAndSettle();
+      await tester.tap(find.bySemanticsLabel('Settings'));
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pumpAndSettle();
+
+      // Unlike the portrait player. Here Left inside a panel is a list interaction, and there is no
+      // stage beside the panel to walk back to.
+      expect(find.text('Settings'), findsOneWidget);
+    });
+  });
+
   group('auto-hide', () {
     testWidgets('the chrome hides itself while playing', (tester) async {
       await tester.pumpWidget(_app(_state(isPlaying: true)));
@@ -278,6 +378,7 @@ Widget _app(
 PlayerUiState _state({
   bool isPlaying = false,
   bool isLive = false,
+  bool hasTracks = false,
   StreamPlayerPlaybackState playbackState = StreamPlayerPlaybackState.ready,
   StreamPlayerError? error,
 }) => PlayerUiState(
@@ -293,10 +394,46 @@ PlayerUiState _state({
     playbackState: playbackState,
     position: const Duration(minutes: 1),
     duration: isLive ? Duration.zero : const Duration(minutes: 10),
+    videoTracks: hasTracks ? _videoTracks : const [],
+    audioTracks: hasTracks ? _audioTracks : const [],
     error: error,
   ),
   capabilities: StreamPlayerCapabilities.full,
 );
+
+const _videoTracks = [
+  StreamPlayerVideoTrack(
+    id: '1080',
+    width: 1920,
+    height: 1080,
+    bitrate: 6000000,
+    isSelected: false,
+  ),
+  StreamPlayerVideoTrack(
+    id: '720',
+    width: 1280,
+    height: 720,
+    bitrate: 3000000,
+    isSelected: false,
+  ),
+];
+
+const _audioTracks = [
+  StreamPlayerAudioTrack(
+    id: 'en',
+    language: 'en',
+    label: 'English',
+    isDefaultSelected: true,
+    isSelected: true,
+  ),
+  StreamPlayerAudioTrack(
+    id: 'vi',
+    language: 'vi',
+    label: 'Vietnamese',
+    isDefaultSelected: false,
+    isSelected: false,
+  ),
+];
 
 void _noop() {}
 

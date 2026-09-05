@@ -4,22 +4,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_steam_tv/core/design_system/stream_tv_colors.dart';
 import 'package:flutter_steam_tv/features/player/presentation/model/player_focus_owner.dart';
+import 'package:flutter_steam_tv/features/player/presentation/model/player_section.dart';
+import 'package:flutter_steam_tv/features/player/presentation/model/player_section_stack.dart';
 import 'package:flutter_steam_tv/features/player/presentation/model/player_settings_ui_state.dart';
 import 'package:flutter_steam_tv/features/player/presentation/model/player_ui_state.dart';
 import 'package:flutter_steam_tv/features/player/presentation/widget/player_buffering_indicator.dart';
 import 'package:flutter_steam_tv/features/player/presentation/widget/player_controller_chrome.dart';
 import 'package:flutter_steam_tv/features/player/presentation/widget/player_error_panel.dart';
-import 'package:flutter_steam_tv/features/player/presentation/widget/player_settings_panel.dart';
+import 'package:flutter_steam_tv/features/player/presentation/widget/player_parked_focus_target.dart';
+import 'package:flutter_steam_tv/features/player/presentation/widget/player_section_host.dart';
 
 /// Landscape playback.
 ///
-/// ## The one idea worth knowing
+/// ## The two ideas worth knowing
 ///
-/// Focus ownership runs through a single value — [PlayerFocusOwner] — rather than a set of booleans
-/// each effect interprets for itself. Every gate below reads that one value, so "who owns the D-pad
-/// right now" has exactly one answer and the answer cannot contradict itself. That is ported
-/// directly from the Compose player, where the flags-based version raced: a panel opening while the
-/// controller was still marked visible left two subtrees each believing focus was theirs.
+/// **One focus owner.** [PlayerFocusOwner] is a single derived value, not a set of booleans each
+/// effect interprets for itself. Every gate below reads it, so "who owns the D-pad right now" has
+/// exactly one answer and the answer cannot contradict itself.
+///
+/// **Panels are a stack, not a flag.** [PlayerSectionStack] holds what is open and where each panel
+/// is in its transition, so Settings → Quality keeps the settings list composed underneath and
+/// returning to it restores the row the viewer was on. The portrait player uses the same stack and
+/// the same panels; only the base level differs.
 ///
 /// ## Layers, back to front
 ///
@@ -28,9 +34,10 @@ import 'package:flutter_steam_tv/features/player/presentation/widget/player_sett
 /// 3. The input target: any D-pad press reveals the chrome. Focusable only while it owns focus, so
 ///    it releases focus on its own the moment the chrome appears.
 /// 4. The buffering spinner.
-/// 5. The controller chrome, sliding up.
-/// 6. The settings panel.
-/// 7. The error panel, which replaces everything above it.
+/// 5. The controller chrome, fading in.
+/// 6. The parked anchor, which holds focus while a panel animates.
+/// 7. The panel stack.
+/// 8. The error panel, which replaces everything above it.
 ///
 /// ## Injected surface
 ///
@@ -109,15 +116,16 @@ final class _PlayerScreenState extends State<PlayerScreen> {
       target: FocusNode(debugLabel: 'player-${target.name}'),
   };
   final FocusNode _surfaceNode = FocusNode(debugLabel: 'player-surface');
+  final FocusNode _parkedNode = FocusNode(debugLabel: 'player-parked');
 
   Timer? _autoHideTimer;
   bool _isControllerVisible = false;
-  bool _isSettingsOpen = false;
+  PlayerSectionStack _sections = PlayerSectionStack.empty;
   PlayerControlTarget _lastControlTarget = PlayerControlTarget.playPause;
 
   PlayerFocusOwner get _focusOwner => resolvePlayerFocusOwner(
     hasError: widget.uiState.error != null,
-    isSettingsOpen: _isSettingsOpen,
+    sections: _sections,
     isControllerVisible: _isControllerVisible,
   );
 
@@ -148,14 +156,24 @@ final class _PlayerScreenState extends State<PlayerScreen> {
   void didUpdateWidget(PlayerScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     final hasError = widget.uiState.error != null;
-    if (hasError && (_isControllerVisible || _isSettingsOpen)) {
-      // An error outranks everything. Collapsing the chrome here rather than letting it linger is
-      // what stops focus sitting on a control whose player is dead.
+    if (hasError && (_isControllerVisible || _sections.hasSectionInPlay)) {
+      // An error outranks everything. Collapsing the chrome and clearing the stack here rather than
+      // letting them linger is what stops focus sitting on a control whose player is dead. The
+      // stack is reset without animation: a panel sliding out over an error panel would be
+      // animating content that no longer has anything behind it.
       setState(() {
         _isControllerVisible = false;
-        _isSettingsOpen = false;
+        _sections = _sections.reset();
       });
       _autoHideTimer?.cancel();
+    }
+    // A setting category can disappear mid-session when a manifest reloads. A panel left open on it
+    // would be empty and unfocusable, so drop back to the chrome.
+    if (!widget.uiState.settings.isAvailable && _sections.hasSectionInPlay) {
+      setState(() {
+        _sections = _sections.reset();
+        _isControllerVisible = true;
+      });
     }
     // Playback resuming re-arms the timer; pausing stops it, so a paused controller stays up.
     if (oldWidget.uiState.isPlaying != widget.uiState.isPlaying) {
@@ -170,6 +188,7 @@ final class _PlayerScreenState extends State<PlayerScreen> {
       node.dispose();
     }
     _surfaceNode.dispose();
+    _parkedNode.dispose();
     super.dispose();
   }
 
@@ -180,8 +199,8 @@ final class _PlayerScreenState extends State<PlayerScreen> {
     final owner = _focusOwner;
 
     return PopScope(
-      // Never `true`. Back has four possible meanings here — close the panel, hide the chrome, leave
-      // the player, or leave a deep-linked player that has nothing to pop back to — and letting
+      // Never `true`. Back has four possible meanings here — pop a panel, hide the chrome, leave the
+      // player, or leave a deep-linked player that has nothing to pop back to — and letting
       // Navigator handle some of them would split that decision across two places. One handler owns
       // all four; [PlayerScreen.onExit] owns the last two.
       canPop: false,
@@ -189,7 +208,7 @@ final class _PlayerScreenState extends State<PlayerScreen> {
       child: Scaffold(
         backgroundColor: StreamTvColors.playerBackground,
         body: Stack(
-          fit: .expand,
+          fit: StackFit.expand,
           children: [
             const ColoredBox(color: StreamTvColors.playerBackground),
             widget.videoSurface,
@@ -207,8 +226,8 @@ final class _PlayerScreenState extends State<PlayerScreen> {
             if (error == null) ...[
               if (uiState.isBuffering)
                 const Center(child: PlayerBufferingIndicator()),
-              // Mounted only while it owns focus, because the chrome's entry focus request rides
-              // on `autofocus` — which fires when a node is first attached, not when an opacity
+              // Mounted only while it owns focus, because the chrome's entry focus request rides on
+              // `autofocus` — which fires when a node is first attached, not when an opacity
               // changes. Keeping it mounted and merely invisible would mean no entry focus at all.
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 180),
@@ -222,18 +241,29 @@ final class _PlayerScreenState extends State<PlayerScreen> {
                         onSeekBack: widget.onSeekBack,
                         onToggleLiked: widget.onToggleLiked,
                         onToggleSaved: widget.onToggleSaved,
-                        onOpenSettings: _openSettings,
+                        onOpenMetadata: () =>
+                            _openSection(PlayerSection.metadata),
+                        onOpenSettings: () =>
+                            _openSection(PlayerSection.settings),
                         onSeekBarMoveDown: _focusLastRowControl,
                         onInteraction: _onInteraction,
                       )
                     : const SizedBox.shrink(),
               ),
-              if (owner == PlayerFocusOwner.settings)
-                PlayerSettingsPanel(
-                  settings: uiState.settings,
-                  onOptionSelected: _onSettingOptionSelected,
-                  onDismiss: _closeSettings,
-                ),
+              // Always composed, so it is always a valid place to put focus. Removing it while a
+              // panel animates is exactly when focus would fall back to the video surface.
+              PlayerParkedFocusTarget(focusNode: _parkedNode),
+              PlayerSectionHost(
+                sections: _sections,
+                settings: uiState.settings,
+                title: uiState.item.title,
+                description: uiState.item.description,
+                onOpenSection: _openSection,
+                onDismissSection: _dismissSection,
+                onEnterFinished: _onSectionEnterFinished,
+                onExitFinished: _onSectionExitFinished,
+                onOptionSelected: _onSettingOptionSelected,
+              ),
             ] else
               PlayerErrorPanel(
                 error: error,
@@ -257,6 +287,7 @@ final class _PlayerScreenState extends State<PlayerScreen> {
       PlayerControlTarget.rewind ||
       PlayerControlTarget.forward => uiState.isSeekable,
       PlayerControlTarget.settings => uiState.settings.isAvailable,
+      PlayerControlTarget.description ||
       PlayerControlTarget.playPause ||
       PlayerControlTarget.like ||
       PlayerControlTarget.save => true,
@@ -293,21 +324,66 @@ final class _PlayerScreenState extends State<PlayerScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _claimSurfaceFocus());
   }
 
-  void _openSettings() {
+  /// Opens a panel, parking focus before the control that opened it leaves the tree.
+  ///
+  /// The park has to happen in the same frame as the open: the chrome unmounts immediately, and
+  /// without somewhere to send focus first, Flutter's spatial search hands it to the video surface
+  /// behind the panel.
+  void _openSection(PlayerSection section) {
+    final opened = _sections.open(section);
+    if (opened == _sections) {
+      return;
+    }
     _autoHideTimer?.cancel();
+    _parkedNode.requestFocus();
     setState(() {
-      _lastControlTarget = PlayerControlTarget.settings;
-      _isSettingsOpen = true;
-      _isControllerVisible = false;
+      // Remembered so closing the panel returns focus to the control that opened it rather than to
+      // the entry control, as `spec/player.md` requires.
+      if (section == PlayerSection.settings) {
+        _lastControlTarget = PlayerControlTarget.settings;
+      } else if (section == PlayerSection.metadata) {
+        _lastControlTarget = PlayerControlTarget.description;
+      }
+      _sections = opened;
+      // Only the base level hides the chrome. A child panel opening over a parent must leave the
+      // chrome flag alone, or dismissing back to the parent would also try to restore the chrome.
+      if (section.parent == null) {
+        _isControllerVisible = false;
+      }
     });
   }
 
-  void _closeSettings() {
+  void _dismissSection() {
+    final dismissed = _sections.dismissCurrent();
+    if (dismissed == _sections) {
+      return;
+    }
+    // Parking only matters when a parent panel is revealed; returning to the base level has the
+    // chrome to receive focus instead.
+    if (dismissed.stack.isNotEmpty) {
+      _parkedNode.requestFocus();
+    }
     setState(() {
-      _isSettingsOpen = false;
-      _isControllerVisible = true;
+      _sections = dismissed;
+      if (dismissed.stack.isEmpty) {
+        _isControllerVisible = true;
+      }
     });
     _restartAutoHide();
+  }
+
+  void _onSectionEnterFinished() {
+    if (!_sections.isPanelEntering) {
+      return;
+    }
+    setState(() => _sections = _sections.onEnterFinished());
+  }
+
+  void _onSectionExitFinished() {
+    if (!_sections.isPanelExiting) {
+      return;
+    }
+    setState(() => _sections = _sections.onExitFinished());
   }
 
   void _onSettingOptionSelected(PlayerSettingKind kind, String optionId) {
@@ -319,21 +395,24 @@ final class _PlayerScreenState extends State<PlayerScreen> {
       case PlayerSettingKind.subtitles:
         widget.onSubtitlesSelected(optionId);
     }
+    // Choosing an option closes its panel and reveals the settings list underneath, so the viewer
+    // can see the row they just changed rather than being dropped back at the video.
+    _dismissSection();
   }
 
   void _onInteraction() => _restartAutoHide();
 
-  /// Restarts the auto-hide countdown, or cancels it while paused.
+  /// Restarts the auto-hide countdown, or cancels it while paused or while a panel is open.
   ///
   /// A paused player keeps its chrome: the viewer stopped to look at something, and hiding the
   /// controls out from under them is the opposite of helpful.
   void _restartAutoHide() {
     _autoHideTimer?.cancel();
-    if (!widget.uiState.isPlaying) {
+    if (!widget.uiState.isPlaying || _sections.hasSectionInPlay) {
       return;
     }
     _autoHideTimer = Timer(PlayerScreen.controllerAutoHide, () {
-      if (mounted && _isControllerVisible && !_isSettingsOpen) {
+      if (mounted && _isControllerVisible && !_sections.hasSectionInPlay) {
         _hideController();
       }
     });
@@ -345,8 +424,8 @@ final class _PlayerScreenState extends State<PlayerScreen> {
       // not also run the in-screen back step, or leaving the player would close a panel behind it.
       return;
     }
-    if (_isSettingsOpen) {
-      _closeSettings();
+    if (_sections.hasSectionInPlay) {
+      _dismissSection();
       return;
     }
     if (_isControllerVisible) {
@@ -385,7 +464,7 @@ final class _InputTarget extends StatelessWidget {
       child: GestureDetector(
         // A tap does what a Select press does, so the screen works on a touch device too.
         onTap: onReveal,
-        behavior: .opaque,
+        behavior: HitTestBehavior.opaque,
         child: const SizedBox.expand(),
       ),
     );
@@ -393,12 +472,12 @@ final class _InputTarget extends StatelessWidget {
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) {
-      return .ignored;
+      return KeyEventResult.ignored;
     }
     switch (event.logicalKey) {
       case LogicalKeyboardKey.mediaPlayPause:
         onTogglePlayPause();
-        return .handled;
+        return KeyEventResult.handled;
 
       case LogicalKeyboardKey.select:
       case LogicalKeyboardKey.enter:
@@ -409,10 +488,10 @@ final class _InputTarget extends StatelessWidget {
       case LogicalKeyboardKey.arrowLeft:
       case LogicalKeyboardKey.arrowRight:
         onReveal();
-        return .handled;
+        return KeyEventResult.handled;
 
       case _:
-        return .ignored;
+        return KeyEventResult.ignored;
     }
   }
 }

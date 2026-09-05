@@ -26,6 +26,7 @@ final class PlayerControlRow extends StatelessWidget {
     required this.onSeekBack,
     required this.onToggleLiked,
     required this.onToggleSaved,
+    required this.onOpenMetadata,
     required this.onOpenSettings,
     required this.onInteraction,
     this.autofocusTarget,
@@ -56,6 +57,9 @@ final class PlayerControlRow extends StatelessWidget {
   /// Toggle the save affordance.
   final VoidCallback onToggleSaved;
 
+  /// Open the metadata panel.
+  final VoidCallback onOpenMetadata;
+
   /// Open the settings panel.
   final VoidCallback onOpenSettings;
 
@@ -71,6 +75,14 @@ final class PlayerControlRow extends StatelessWidget {
       height: height,
       child: Stack(
         children: [
+          Align(
+            alignment: .centerLeft,
+            child: _DescriptionPill(
+              focusNode: focusNodes[PlayerControlTarget.description]!,
+              autofocus: autofocusTarget == PlayerControlTarget.description,
+              onPressed: _guarded(onOpenMetadata),
+            ),
+          ),
           Align(
             child: _TransportCluster(
               uiState: uiState,
@@ -102,6 +114,80 @@ final class PlayerControlRow extends StatelessWidget {
     onInteraction();
     action();
   };
+}
+
+/// The metadata entry point, shaped as a pill so it reads as a label rather than an icon.
+///
+/// A pill and not a circle because it carries a word: `spec/player.md` puts it at the leading edge
+/// as the counterweight to the trailing action cluster, and an icon there would be one more glyph
+/// to decode at ten feet.
+final class _DescriptionPill extends StatefulWidget {
+  const _DescriptionPill({
+    required this.focusNode,
+    required this.autofocus,
+    required this.onPressed,
+  });
+
+  static const double _height = 44;
+
+  final FocusNode focusNode;
+  final bool autofocus;
+  final VoidCallback onPressed;
+
+  @override
+  State<_DescriptionPill> createState() => _DescriptionPillState();
+}
+
+final class _DescriptionPillState extends State<_DescriptionPill> {
+  bool _hasFocus = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Description',
+      child: InkWell(
+        focusNode: widget.focusNode,
+        autofocus: widget.autofocus,
+        onTap: widget.onPressed,
+        onFocusChange: (hasFocus) => setState(() => _hasFocus = hasFocus),
+        borderRadius: .circular(_DescriptionPill._height / 2),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: _hasFocus
+                ? StreamTvColors.playerForeground
+                : StreamTvColors.playerControlIdle,
+            borderRadius: .circular(_DescriptionPill._height / 2),
+          ),
+          child: SizedBox(
+            height: _DescriptionPill._height,
+            child: Padding(
+              padding: const .symmetric(horizontal: 20),
+              // A Row that hugs its text, not a Center: `Align` hands this loose constraints, and
+              // anything that expands to fill them stretches the pill across the whole row — over
+              // the transport cluster, swallowing its presses.
+              child: Row(
+                mainAxisSize: .min,
+                children: [
+                  Text(
+                    'Description',
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: _hasFocus
+                          ? StreamTvColors.playerBackground
+                          : StreamTvColors.playerForeground,
+                      fontSize: 14,
+                      fontWeight: .w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Rewind, play/pause, forward.

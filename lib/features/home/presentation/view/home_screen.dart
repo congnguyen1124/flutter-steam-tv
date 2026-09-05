@@ -9,6 +9,7 @@ import 'package:flutter_steam_tv/features/home/presentation/widget/home_content_
 import 'package:flutter_steam_tv/features/home/presentation/widget/home_error_view.dart';
 import 'package:flutter_steam_tv/features/home/presentation/widget/home_loading_view.dart';
 import 'package:flutter_steam_tv/features/player/presentation/view/player_route.dart';
+import 'package:flutter_steam_tv/features/player/presentation/view/vertical_player_route.dart';
 import 'package:go_router/go_router.dart';
 
 final class HomeScreen extends ConsumerWidget {
@@ -35,8 +36,22 @@ final class HomeScreen extends ConsumerWidget {
   /// what keeps the two from drifting: passing the whole `HomeItem` through navigation would work
   /// today and break the first time a deep link opens the player directly.
   void _play(BuildContext context, HomeItem item) {
-    unawaited(context.push<void>(PlayerRoute.locationFor(item.id)));
+    unawaited(context.push<void>(_locationFor(item)));
   }
+
+  /// Portrait content opens the portrait player; everything else opens the landscape one.
+  ///
+  /// Decided from the item's own kind rather than from the row it was pressed in. The same short
+  /// appears in three rows — the vertical banner, the shorts rail and the popular rail — and
+  /// deciding per row would mean three places to keep in step, one of which will eventually
+  /// disagree. `HomeSectionViewType.accepts` already ties portrait rows to `short`, so the kind
+  /// carries the same information with none of the duplication.
+  static String _locationFor(HomeItem item) => switch (item.kind) {
+    HomeItemKind.short => VerticalPlayerRoute.locationFor(item.id),
+    HomeItemKind.video ||
+    HomeItemKind.series ||
+    HomeItemKind.channel => PlayerRoute.locationFor(item.id),
+  };
 }
 
 final class HomeLceView extends StatelessWidget {

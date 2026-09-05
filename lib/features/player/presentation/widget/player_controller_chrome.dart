@@ -27,6 +27,7 @@ final class PlayerControllerChrome extends StatelessWidget {
     required this.onSeekBack,
     required this.onToggleLiked,
     required this.onToggleSaved,
+    required this.onOpenMetadata,
     required this.onOpenSettings,
     required this.onSeekBarMoveDown,
     required this.onInteraction,
@@ -64,6 +65,9 @@ final class PlayerControllerChrome extends StatelessWidget {
 
   /// Toggle the save affordance.
   final VoidCallback onToggleSaved;
+
+  /// Open the metadata panel. Reached through the leading `Description` pill.
+  final VoidCallback onOpenMetadata;
 
   /// Open the settings panel.
   final VoidCallback onOpenSettings;
@@ -137,6 +141,7 @@ final class PlayerControllerChrome extends StatelessWidget {
                     onSeekBack: onSeekBack,
                     onToggleLiked: onToggleLiked,
                     onToggleSaved: onToggleSaved,
+                    onOpenMetadata: onOpenMetadata,
                     onOpenSettings: onOpenSettings,
                     onInteraction: onInteraction,
                     autofocusTarget: entryTarget,

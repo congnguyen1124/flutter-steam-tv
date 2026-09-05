@@ -196,7 +196,7 @@ final class PlayerViewModelProvider
   }
 }
 
-String _$playerViewModelHash() => r'31c17524a6b571af6f00d2b5f8ae0d001c10abd6';
+String _$playerViewModelHash() => r'148811c177606dec8089bdbb143589dc9aef08e3';
 
 /// Drives the player screen.
 ///
