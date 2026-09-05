@@ -59,5 +59,18 @@ abstract final class StreamTvColors {
 
   /// The settings panel, which sits over video and must not be readable through.
   static const Color playerPanel = Color(0xF2101418);
+
+  /// The portrait stage's focus border once it has been held for a moment.
+  ///
+  /// The border announces focus at full white and then softens to this, because the stage holds
+  /// focus for most of a viewing session and a bright 6-unit frame around every short is louder
+  /// than the content. Ported from OttClouds' `TransparentWhite20`.
+  static const Color playerFocusBorderSoftened = Color(0x33FFFFFF);
+
+  /// Fill behind the setting row whose value is currently in effect.
+  static const Color playerSettingSelected = Color(0x1AFFFFFF);
+
+  /// Hairline around that same row, so it reads as chosen even before it takes focus.
+  static const Color playerSettingSelectedBorder = Color(0x33FFFFFF);
   // endregion
 }

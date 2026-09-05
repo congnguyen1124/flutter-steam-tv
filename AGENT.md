@@ -22,6 +22,11 @@
   a boolean to a screen.
 - Every panel must contain at least one focusable element. One that does not strands focus on the
   parked anchor, which swallows every key including Back.
+- The parked anchor must stay `skipTraversal: true`. It is always composed and sits at the leading
+  edge, so without it a Left press past the leading-most control parks focus with no transition
+  running — the screen keeps believing the chrome owns focus while the anchor eats every key, and the
+  chrome returns visible but unfocused because `autofocus` cannot claim focus a sibling already
+  holds.
 - Gate every playback control on `controller.capabilities`. A command a host cannot honour is a
   documented no-op, so an ungated control renders as a button that does nothing on Tizen.
 - `StreamPlayerController.close()` is mandatory, from `ref.onDispose`. A leaked player holds a
@@ -72,6 +77,9 @@
 - Use 1280x720 as the default TV preview size and add 1920x1080 for breakpoint-sensitive layouts.
 - Make D-pad focus explicit and deterministic. Remote Select must invoke the same action as tap/click.
 - Keep focus borders inside stable widget dimensions so focus does not shift surrounding layout.
+- A destination that draws behind the top bar owns the decision to request the readability layer, via
+  `TopBarReadability`. The shell only honours the request; it cannot know whether anything is behind
+  the bar right now.
 - Use dot shorthand when the context type is obvious (`.dark`, `.video`, `const .loading()`). Do not
   force shorthand where it obscures the resolved type.
 - Use Roboto through the app theme. Reuse icons from `assets/icons` before adding new icon sources.
@@ -84,6 +92,11 @@
   `python3 tools/android_vector_to_svg.py ../android_stream_tv/app/src/main/res/drawable assets/icons --overwrite`
 
 - Commit source assets and generated SVG assets. Do not commit generated preview caches.
+- Read [`updateReadme.md`](updateReadme.md) before re-capturing any image or GIF in
+  [`README.md`](README.md). It maps each source file to the captures that must be re-run, records
+  which dummy item each demo uses, and explains why no player capture may count key presses against
+  the controller's five-second auto-hide. Update it in the same change whenever a capture, a screen,
+  or a navigation path changes.
 - Register every asset directory and font family in `pubspec.yaml`.
 
 ## Generated code and validation

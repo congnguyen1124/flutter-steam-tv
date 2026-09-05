@@ -8,6 +8,7 @@ import 'package:flutter_steam_tv/features/home/presentation/view_model/home_view
 import 'package:flutter_steam_tv/features/home/presentation/widget/home_content_view.dart';
 import 'package:flutter_steam_tv/features/home/presentation/widget/home_error_view.dart';
 import 'package:flutter_steam_tv/features/home/presentation/widget/home_loading_view.dart';
+import 'package:flutter_steam_tv/features/main/presentation/view_model/top_bar_readability_view_model.dart';
 import 'package:flutter_steam_tv/features/player/presentation/view/player_route.dart';
 import 'package:flutter_steam_tv/features/player/presentation/view/vertical_player_route.dart';
 import 'package:go_router/go_router.dart';
@@ -26,6 +27,12 @@ final class HomeScreen extends ConsumerWidget {
       autofocusContent: autofocusContent,
       onRetry: ref.read(homeViewModelProvider.notifier).reload,
       onItemPressed: (item) => _play(context, item),
+      // `spec/home.md`: the hero carries its own scrim and sits behind the bar deliberately, so the
+      // readability layer belongs to every section *below* it and to none of it. Written from here
+      // rather than from the widget so the content tree stays free of Riverpod.
+      onFocusedSectionChanged: (index) => ref
+          .read(topBarReadabilityProvider.notifier)
+          .request(isRequested: index > 0),
     );
   }
 
@@ -59,6 +66,7 @@ final class HomeLceView extends StatelessWidget {
     required this.state,
     required this.onRetry,
     required this.onItemPressed,
+    this.onFocusedSectionChanged,
     this.autofocusContent = true,
     this.autoPlayBanners = true,
     super.key,
@@ -67,6 +75,7 @@ final class HomeLceView extends StatelessWidget {
   final AsyncValue<List<HomeSection>> state;
   final VoidCallback onRetry;
   final ValueChanged<HomeItem> onItemPressed;
+  final ValueChanged<int>? onFocusedSectionChanged;
   final bool autofocusContent;
   final bool autoPlayBanners;
 
@@ -78,6 +87,7 @@ final class HomeLceView extends StatelessWidget {
         autofocusContent: autofocusContent,
         autoPlayBanners: autoPlayBanners,
         onItemPressed: onItemPressed,
+        onFocusedSectionChanged: onFocusedSectionChanged,
       ),
       AsyncError(:final error) => HomeErrorView(
         message: _messageFor(error),

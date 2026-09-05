@@ -299,12 +299,17 @@ final class PlayerSectionSurface extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              // 14 below the header, matching the reference: the rows are only 4 apart, so a
+              // header set at the same rhythm reads as the first row rather than as a heading.
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 14),
               child: Text(
                 title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: StreamTvColors.playerForeground,
-                  fontSize: 18,
+                  fontSize: 24,
+                  height: 30 / 24,
                   fontWeight: FontWeight.w700,
                 ),
               ),

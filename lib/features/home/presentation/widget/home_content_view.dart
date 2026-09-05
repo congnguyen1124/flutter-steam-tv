@@ -12,6 +12,7 @@ final class HomeContentView extends StatefulWidget {
     required this.sections,
     required this.autofocusContent,
     required this.onItemPressed,
+    this.onFocusedSectionChanged,
     this.autoPlayBanners = true,
     super.key,
   });
@@ -19,6 +20,13 @@ final class HomeContentView extends StatefulWidget {
   final List<HomeSection> sections;
   final bool autofocusContent;
   final ValueChanged<HomeItem> onItemPressed;
+
+  /// Reports which section holds focus, so the shell can decide about the top-bar readability layer.
+  ///
+  /// The index, not a boolean: what counts as "far enough down the feed" is the shell's rule to
+  /// apply, and a widget that pre-decided it would have to be edited again the first time that rule
+  /// changes.
+  final ValueChanged<int>? onFocusedSectionChanged;
   final bool autoPlayBanners;
 
   @override
@@ -80,7 +88,7 @@ final class _HomeContentViewState extends State<HomeContentView> {
             padding: .only(top: topPadding, bottom: _bottomPadding),
             scrollCacheExtent: .pixels(constraints.maxHeight),
             itemCount: widget.sections.length,
-            onFocusedItemChanged: (index) => _focusedSectionIndex = index,
+            onFocusedItemChanged: _onFocusedSectionChanged,
             separatorBuilder: (_, _) => const SizedBox(height: _sectionSpacing),
             itemBuilder: (context, index) {
               final section = widget.sections[index];
@@ -99,6 +107,11 @@ final class _HomeContentViewState extends State<HomeContentView> {
     );
   }
 
+  void _onFocusedSectionChanged(int index) {
+    _focusedSectionIndex = index;
+    widget.onFocusedSectionChanged?.call(index);
+  }
+
   Widget _buildSection({
     required HomeSection section,
     required int sectionIndex,
@@ -114,7 +127,7 @@ final class _HomeContentViewState extends State<HomeContentView> {
           section.items.length - 1,
         );
     final autofocus = widget.autofocusContent && sectionIndex == 0;
-    void onFocused() => _focusedSectionIndex = sectionIndex;
+    void onFocused() => _onFocusedSectionChanged(sectionIndex);
 
     void onSelectedIndexChanged(int index) {
       _selectedIndices[section.id] = index;

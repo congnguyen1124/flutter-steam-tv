@@ -11,6 +11,7 @@ final class MainScreen extends StatefulWidget {
     required this.onNavigate,
     required this.child,
     this.contentBehindTopBar = false,
+    this.showTopBarReadabilityLayer = false,
     super.key,
   });
 
@@ -19,12 +20,27 @@ final class MainScreen extends StatefulWidget {
   final Widget child;
   final bool contentBehindTopBar;
 
+  /// Whether to draw the readability layer behind the top bar.
+  ///
+  /// Only meaningful together with [contentBehindTopBar]: a destination that is inset below the bar
+  /// has nothing to scroll under it. Requested by the destination, because it is the only thing that
+  /// knows whether anything is behind the bar right now — see `TopBarReadability`.
+  final bool showTopBarReadabilityLayer;
+
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
 final class _MainScreenState extends State<MainScreen> {
   static const Duration _overlayDuration = Duration(milliseconds: 160);
+
+  // Slower than the focus overlay on purpose. `spec/README.md` puts this at about 300ms: it appears
+  // while the viewer is scrolling the feed, and a fast fade there reads as a flash behind the bar.
+  static const Duration _readabilityDuration = Duration(milliseconds: 300);
+
+  // Taller than the bar so the gradient finishes below it. Ending exactly at the bar's edge leaves a
+  // hard horizontal line across the artwork, which is more distracting than the collision it fixes.
+  static const double _readabilityHeight = SteamTopBar.height * 1.6;
   static const double _contentTopInset = SteamTopBar.height;
 
   late final FocusScopeNode _contentFocusScopeNode = FocusScopeNode(
@@ -58,6 +74,36 @@ final class _MainScreenState extends State<MainScreen> {
                     top: widget.contentBehindTopBar ? 0 : _contentTopInset,
                   ),
                   child: widget.child,
+                ),
+              ),
+            ),
+          ),
+          // Below the focus overlay and below the bar itself: this protects the bar's own glyphs from
+          // the content, and must not sit over the dim that says the bar owns focus.
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: AnimatedOpacity(
+                opacity: widget.showTopBarReadabilityLayer ? 1 : 0,
+                duration: _readabilityDuration,
+                child: SizedBox(
+                  height: _readabilityHeight,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Theme.of(context).colorScheme.surface,
+                          Theme.of(
+                            context,
+                          ).colorScheme.surface.withValues(alpha: 0),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),

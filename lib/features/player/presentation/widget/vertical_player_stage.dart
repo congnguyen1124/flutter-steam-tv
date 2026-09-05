@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_steam_tv/core/assets/app_assets.dart';
@@ -14,6 +16,18 @@ import 'package:flutter_svg/flutter_svg.dart';
 /// The landscape player hides a transient control row behind a passive surface. This screen has no
 /// control row at all, so the stage itself has to be the play/pause control — Select on it toggles
 /// playback. That is why it takes a focus border rather than being a plain box.
+///
+/// ## Why the border fades instead of staying bright
+///
+/// A 6-unit white border around a portrait video is loud, and on this screen the stage holds focus
+/// for as long as the viewer is watching — which is most of the session. Keeping it at full
+/// strength would frame every short in a white box.
+///
+/// So it announces focus and then gets out of the way: bright for [_focusedBorderHold], then a
+/// [_focusedBorderFade]-long fade down to a faint outline that still says "this is where the D-pad
+/// is". A Select press restarts that cycle, because a press is the moment the viewer wants
+/// confirmation they were aiming at the right thing. Ported from OttClouds'
+/// `VerticalPlayerFocusableSurface`, including the timings.
 ///
 /// ## Why the paused glyph is state, not an animation
 ///
@@ -36,7 +50,22 @@ final class VerticalPlayerStage extends StatefulWidget {
   static const double aspectRatio = 9 / 16;
 
   /// Breathing room above and below the stage.
-  static const double verticalPadding = 24;
+  ///
+  /// Deliberately small: the stage is meant to be as tall as the panel allows, so the portrait
+  /// frame reads as the subject of the screen rather than as a thumbnail floating in a gradient.
+  static const double verticalPadding = 4;
+
+  /// Corner radius of the stage, and the reference for the focus border's own radius.
+  static const double cornerRadius = 16;
+
+  /// How far the focus border sits inside the stage edge.
+  static const double focusBorderInset = 2;
+
+  /// Stroke width of the focus border.
+  static const double focusBorderWidth = 6;
+
+  static const Duration _focusedBorderHold = Duration(seconds: 2);
+  static const Duration _focusedBorderFade = Duration(seconds: 1);
 
   /// What to render.
   final PlayerUiState uiState;
@@ -62,6 +91,14 @@ final class VerticalPlayerStage extends StatefulWidget {
 
 final class _VerticalPlayerStageState extends State<VerticalPlayerStage> {
   bool _hasFocus = false;
+  bool _hasHeldFocus = false;
+  Timer? _holdTimer;
+
+  @override
+  void dispose() {
+    _holdTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,42 +107,92 @@ final class _VerticalPlayerStageState extends State<VerticalPlayerStage> {
     return Focus(
       focusNode: widget.focusNode,
       canRequestFocus: widget.canRequestFocus,
-      onFocusChange: (hasFocus) => setState(() => _hasFocus = hasFocus),
+      onFocusChange: _onFocusChange,
       onKeyEvent: _onKeyEvent,
       child: GestureDetector(
-        onTap: widget.onTogglePlayPause,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: _hasFocus
-                  ? StreamTvColors.playerForeground
-                  : Colors.transparent,
-              width: 4,
+        onTap: _togglePlayPause,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(
+                VerticalPlayerStage.cornerRadius,
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  const ColoredBox(color: StreamTvColors.playerBackground),
+                  widget.videoSurface,
+                  if (uiState.isBuffering)
+                    const Center(child: PlayerBufferingIndicator())
+                  else if (!uiState.isPlaying)
+                    const Center(child: _PausedBadge()),
+                  if (uiState.isSeekable)
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: _StageProgress(uiState: uiState),
+                    ),
+                ],
+              ),
             ),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                const ColoredBox(color: StreamTvColors.playerBackground),
-                widget.videoSurface,
-                if (uiState.isBuffering)
-                  const Center(child: PlayerBufferingIndicator())
-                else if (!uiState.isPlaying)
-                  const Center(child: _PausedBadge()),
-                if (uiState.isSeekable)
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: _StageProgress(uiState: uiState),
+            // Drawn over the video rather than around it, so gaining focus never resizes the frame.
+            // Mounted only while focused: remounting is what restarts the fade from full strength
+            // when the viewer comes back to the stage.
+            if (_hasFocus)
+              IgnorePointer(
+                child: Padding(
+                  padding: const EdgeInsets.all(
+                    VerticalPlayerStage.focusBorderInset,
                   ),
-              ],
-            ),
-          ),
+                  child: AnimatedContainer(
+                    duration: VerticalPlayerStage._focusedBorderFade,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(
+                        VerticalPlayerStage.cornerRadius -
+                            VerticalPlayerStage.focusBorderInset,
+                      ),
+                      border: Border.all(
+                        color: _hasHeldFocus
+                            ? StreamTvColors.playerFocusBorderSoftened
+                            : StreamTvColors.playerForeground,
+                        width: VerticalPlayerStage.focusBorderWidth,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
+  }
+
+  void _onFocusChange(bool hasFocus) {
+    setState(() => _hasFocus = hasFocus);
+    if (hasFocus) {
+      _restartBorderHold();
+    } else {
+      _holdTimer?.cancel();
+      _hasHeldFocus = false;
+    }
+  }
+
+  /// Brightens the border and starts the countdown to softening it again.
+  void _restartBorderHold() {
+    _holdTimer?.cancel();
+    setState(() => _hasHeldFocus = false);
+    _holdTimer = Timer(VerticalPlayerStage._focusedBorderHold, () {
+      if (mounted) {
+        setState(() => _hasHeldFocus = true);
+      }
+    });
+  }
+
+  void _togglePlayPause() {
+    if (_hasFocus) {
+      _restartBorderHold();
+    }
+    widget.onTogglePlayPause();
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
@@ -118,7 +205,7 @@ final class _VerticalPlayerStageState extends State<VerticalPlayerStage> {
       case LogicalKeyboardKey.numpadEnter:
       case LogicalKeyboardKey.space:
       case LogicalKeyboardKey.mediaPlayPause:
-        widget.onTogglePlayPause();
+        _togglePlayPause();
         return KeyEventResult.handled;
 
       case LogicalKeyboardKey.arrowRight:

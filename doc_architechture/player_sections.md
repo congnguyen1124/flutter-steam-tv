@@ -114,6 +114,23 @@ lúc chưa được phép giữ focus.
 > mọi panel phải có ít nhất một thứ focusable — với metadata thì chính vùng scroll là focus target,
 > và đó cũng là cách duy nhất đọc mô tả dài bằng remote.
 
+#### Anchor phải `skipTraversal: true`
+
+"Luôn nằm trong cây" cộng "luôn focusable" là một node dư đối với D-pad. Anchor nằm ở mép trái màn
+hình, nên **`LEFT` từ control ngoài cùng bên trái (pill `Description`) đi thẳng vào nó** bằng
+directional traversal — trong khi không có transition nào đang chạy.
+
+Lúc đó model và thực tế lệch nhau: `resolvePlayerFocusOwner` suy ra owner từ section stack, mà stack
+đang rỗng, nên màn hình tin rằng `controller` đang giữ focus. Thực tế anchor giữ focus và nuốt mọi
+phím. Chrome tự ẩn theo đúng lịch, phím sau hiện nó lại, và nó hiện lại **không nút nào sáng**: yêu
+cầu focus của chrome đi bằng `autofocus`, mà `autofocus` không đòi được focus khi một node anh em
+trong cùng scope đang giữ. Kết quả là một controller nhìn thấy được nhưng bấm gì cũng vô tác dụng,
+chỉ còn Back thoát ra — đúng thứ `spec/player.md` cảnh báo.
+
+[`FocusNode.skipTraversal`](https://api.flutter.dev/flutter/widgets/FocusNode/skipTraversal.html) là
+đúng công cụ: nó loại node khỏi mọi `FocusTraversalPolicy` nhưng `requestFocus()` vẫn chạy. Focus chỉ
+tới anchor khi **màn hình chủ động park**, không bao giờ do người xem bấm phím.
+
 ## 4. Hai quy tắc render
 
 Trong `PlayerSectionHost`:

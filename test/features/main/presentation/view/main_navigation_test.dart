@@ -23,6 +23,54 @@ void main() {
     expect(find.byKey(const ValueKey('calendar-screen')), findsOneWidget);
   });
 
+  group('top-bar readability layer', () {
+    // Read off MainScreen's own flag rather than off the painted gradient: the flag is the contract
+    // between the destination and the shell, and a test that hunted for a DecoratedBox would pass
+    // just as happily on a layer drawn at the wrong time.
+    bool isLayerShown(WidgetTester tester) =>
+        tester.widget<MainScreen>(find.byType(MainScreen))
+            .showTopBarReadabilityLayer;
+
+    testWidgets('is off over the hero, which carries its own scrim', (
+      tester,
+    ) async {
+      _configureTvView(tester);
+      await tester.pumpWidget(const ProviderScope(child: StreamTvApp()));
+      await tester.pumpAndSettle();
+
+      expect(isLayerShown(tester), isFalse);
+    });
+
+    testWidgets('turns on once focus leaves the first section', (tester) async {
+      _configureTvView(tester);
+      await tester.pumpWidget(const ProviderScope(child: StreamTvApp()));
+      await tester.pumpAndSettle();
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+
+      // Without it the feed scrolls under the bar and the logo lands on a thumbnail.
+      expect(isLayerShown(tester), isTrue);
+    });
+
+    testWidgets('is dropped on a destination that is inset below the bar', (
+      tester,
+    ) async {
+      _configureTvView(tester);
+      await tester.pumpWidget(const ProviderScope(child: StreamTvApp()));
+      await tester.pumpAndSettle();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('steam-top-bar-item-search')));
+      await tester.pumpAndSettle();
+
+      // Home's request outlives Home. Search has nothing behind the bar, so honouring it would draw
+      // a band of surface colour across the top of an already-inset screen.
+      expect(isLayerShown(tester), isFalse);
+    });
+  });
+
   testWidgets('applies the lavender primary theme', (tester) async {
     _configureTvView(tester);
     await tester.pumpWidget(const ProviderScope(child: StreamTvApp()));
