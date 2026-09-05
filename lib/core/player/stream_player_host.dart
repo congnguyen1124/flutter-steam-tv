@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter_tizen/flutter_tizen.dart' show isTizen;
 import 'package:stream_player/stream_player.dart';
 import 'package:stream_player_android/stream_player_android.dart';
 import 'package:stream_player_tizen/stream_player_tizen.dart';
@@ -37,5 +38,11 @@ void registerStreamPlayerHost() {
     StreamPlayerAndroid.registerWith();
     return;
   }
-  StreamPlayerTizen.registerWith();
+  if (isTizen) {
+    StreamPlayerTizen.registerWith();
+    return;
+  }
+  throw UnsupportedError(
+    'StreamTV supports native playback on Android and Tizen only.',
+  );
 }

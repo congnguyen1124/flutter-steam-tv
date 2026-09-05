@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+// Flutter-Tizen 3.44 does not re-export this type from material.dart yet.
+// ignore: unnecessary_import
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/services.dart';
 
 /// Marker node used by an app shell to enter a TV list without knowing its rows.

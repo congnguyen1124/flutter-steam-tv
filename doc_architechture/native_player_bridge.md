@@ -52,6 +52,7 @@ Bốn quy tắc quyết định toàn bộ thiết kế:
 
 ```yaml
 dependencies:
+  flutter_tizen: ^0.2.7
   stream_player:
     path: ../flutter_stream_player/packages/stream_player
   stream_player_tizen:
@@ -74,7 +75,13 @@ void registerStreamPlayerHost() {
     StreamPlayerAndroid.registerWith();
     return;
   }
-  StreamPlayerTizen.registerWith();
+  if (isTizen) {
+    StreamPlayerTizen.registerWith();
+    return;
+  }
+  throw UnsupportedError(
+    'StreamTV supports native playback on Android and Tizen only.',
+  );
 }
 ```
 
@@ -88,12 +95,33 @@ Ba điểm đều có chủ ý:
   trên Android — nơi `video_player` vẫn chạy được thật, nhưng chỉ với
   `StreamPlayerCapabilities.basic`. App vẫn phát video và im lặng mất tính năng chọn chất lượng, và
   không có gì báo tại sao. Gọi tên platform làm lỗi đó không thể xảy ra.
+- **Không dùng `Platform.isLinux` để nhận diện Tizen.** Dart VM của Flutter-Tizen báo Linux, nên app
+  dùng `flutter_tizen.isTizen`, vốn kiểm tra biến môi trường `TIZEN_API_VERSION` do runtime Tizen
+  cung cấp. Nhờ vậy bản Linux desktop không bị nhận nhầm là TV.
 - **Không biến package Tizen thành plugin.** Nó có thể khai báo platform `tizen` với
   `dartPluginClass` để tool tự đăng ký, nhưng như vậy phụ thuộc vào cách `flutter-tizen` xử lý một
   Dart-only plugin implementation — thứ mà cả analyzer lẫn `flutter test` đều không kiểm chứng được.
 
 Nếu không có host nào được đăng ký, `StreamPlayerPlatform.instance` ném `StateError` kèm hướng dẫn
 sửa — tốt hơn nhiều so với một null dereference sâu trong widget build.
+
+Tizen phát stream mạng nên `tizen/tizen-manifest.xml` phải khai báo
+`http://tizen.org/privilege/internet`. App không phát file local, vì vậy không xin `mediastorage` hay
+`externalstorage`.
+
+`video_player_tizen` không hỗ trợ TV emulator. Triệu chứng điển hình là controller đã initialized,
+duration/position vẫn tăng nhưng external texture không nhận được frame nên vùng video giữ màu đen.
+Đây là giới hạn native của plugin trên emulator, không phải state của Riverpod hay
+`StreamPlayerView`. Emulator vẫn dùng để kiểm tra build, cài đặt, shell UI, navigation và lifecycle;
+playback native phải smoke test trên Samsung TV thật.
+
+Trên TV thật, `tizen/App.cs` đặt `UIThreadPolicy` thành `RunOnSeparateThread`. Flutter-Tizen 3.44 mặc
+định chạy UI isolate trên platform thread; app này vừa tải ảnh mạng vừa nhận platform-channel event
+và external-texture frame, nên tách UI thread để platform loop không bị đói frame. Android không đi
+qua runner này và vẫn dùng PlatformView/Media3 như trước.
+
+TPK cho TV emulator hoặc thiết bị thật phải được ký bằng Samsung certificate hợp lệ và distributor
+certificate phải chứa DUID của đúng thiết bị.
 
 Trước khi build Android, publish engine một lần (và sau mỗi lần sửa engine):
 
