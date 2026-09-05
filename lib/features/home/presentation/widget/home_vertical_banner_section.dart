@@ -176,12 +176,11 @@ final class _HomeVerticalBannerSectionState
                 0.0,
                 2.0,
               );
-              final fraction = distance / 2;
-              final scale = lerpDouble(1.12, 0.72, fraction)!;
-              final opacity = lerpDouble(1, 0.38, fraction)!;
+              final fraction = distance / 1.5;
+              final scale = lerpDouble(1.0, 0.72, fraction)!;
               return Transform.scale(
                 scale: scale,
-                child: Opacity(opacity: opacity, child: child),
+                child: Opacity(opacity: 1, child: child),
               );
             },
           );

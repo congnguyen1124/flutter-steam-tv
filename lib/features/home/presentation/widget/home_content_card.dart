@@ -105,7 +105,7 @@ final class HomeContentCard extends StatelessWidget {
         children: [
           if (rank case final position?)
             Positioned(
-              left: 0,
+              left: -10,
               top: (metrics.thumbnailHeight - metrics.rankArtworkHeight) / 2,
               width: metrics.contentLeadingInset + metrics.rankOverlap,
               height: metrics.rankArtworkHeight,

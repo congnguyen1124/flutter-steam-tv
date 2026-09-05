@@ -191,7 +191,7 @@ final class _ListContentViewState extends State<ListContentView> {
                         decoration: BoxDecoration(
                           border: Border.all(
                             color: _hasFocus
-                                ? StreamTvColors.primary
+                                ? StreamTvColors.surfaceFocused
                                 : Colors.transparent,
                             width: 3,
                           ),

@@ -53,11 +53,6 @@ final class SteamTopBarDestinationButton extends StatelessWidget {
                   : isSelected
                   ? colorScheme.primary.withValues(alpha: 0.16)
                   : Colors.transparent,
-              border: Border.all(
-                color: isSelected && !isFocused
-                    ? colorScheme.primary.withValues(alpha: 0.36)
-                    : Colors.transparent,
-              ),
               borderRadius: .circular(40),
             ),
             child: Row(

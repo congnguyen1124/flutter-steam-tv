@@ -147,7 +147,7 @@ List<_i3.WidgetPreview> previews() => [
     packageName: 'flutter_steam_tv',
     scriptUri:
         'file:///home/congnguyencn/CN_Develop/flutter_steam_tv/lib/features/main/presentation/view/main_screen_preview.dart',
-    line: 10,
+    line: 11,
     column: 1,
     previewFunction: () => _i10.mainSearchPreview(),
     transformedPreview:
@@ -161,7 +161,7 @@ List<_i3.WidgetPreview> previews() => [
     packageName: 'flutter_steam_tv',
     scriptUri:
         'file:///home/congnguyencn/CN_Develop/flutter_steam_tv/lib/features/main/presentation/view/main_screen_preview.dart',
-    line: 19,
+    line: 23,
     column: 1,
     previewFunction: () => _i10.mainProfilePreview(),
     transformedPreview:

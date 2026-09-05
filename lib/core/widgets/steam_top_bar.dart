@@ -110,10 +110,10 @@ final class _SteamTopBarState extends State<SteamTopBar> {
                     end: .bottomCenter,
                     colors: [
                       StreamTvColors.background,
-                      StreamTvColors.background.withValues(alpha: 0.78),
+                      StreamTvColors.surface.withValues(alpha: 0.55),
                       Colors.transparent,
                     ],
-                    stops: const [0, 0.72, 1],
+                    stops: const [0, 0.60, 1],
                   )
                 : null,
           ),
