@@ -72,24 +72,18 @@ nó ghi ra đều có hậu tố `-android`: chỉ cần đặt file Tizen cạn
 Sau khi có file Tizen, thay ô `<em>waiting for<br><code>…</code></em>` trong README bằng thẻ `<img>`
 tương ứng.
 
-### `player-settings-section` và `player-quality-section` GIỜ ĐÃ có bản Tizen
+### Hai capture KHÔNG có bản Tizen
 
-Trước đây hai ô này trong README ghi "Not applicable on Tizen": host Tizen chạy trên
-`video_player_tizen`, vốn hiện thực federated interface của `video_player` nên **không mở ra rendition
-nào**. Không có rendition → không có category → `settings.isAvailable` = `false` → nút Settings không
-được vẽ.
+`player-settings-section` và `player-quality-section` **không bao giờ có ảnh Tizen**, và đó là đúng
+thiết kế chứ không phải thiếu sót:
 
-Đổi host sang `video_player_avplay` (AVPlay của Samsung) thì manifest mở ra, nên **Quality và Audio
-đã xuất hiện trên Tizen**. Hai ô đó giờ chờ ảnh thật như mọi ô Tizen khác.
+Host Tizen khai báo `StreamPlayerCapabilities.basic` — không có track selection. Không có rendition
+nào chọn được thì không có category nào, `settings.isAvailable` là `false`, và nút Settings **không
+được vẽ ra**. Trong README hai ô đó ghi thẳng "Not applicable on Tizen" thay vì để trống — một ô
+trống ngụ ý "sắp có", và sẽ không bao giờ có.
 
-**Ngoại lệ còn lại là Subtitles**, và là cố ý: AVPlay đổi được text track nhưng **không có đường tắt
-phụ đề**, mà app luôn để `Off` làm dòng đầu. Menu mà dòng đầu bấm vào không làm gì thì tệ hơn là
-không có menu — nên `textTrackSelection` vẫn `false` và category Subtitles không hiện trên Tizen.
-Nếu sau này tìm được đường tắt phụ đề (hoặc chuyển sang tự vẽ cue trong Flutter), phải sửa cả bảng
-capability ở mục 6 của README lẫn đoạn này.
-
-**Lưu ý khi chụp cột Tizen:** `video_player_avplay` **không chạy trên TV emulator** — chỉ TV Samsung
-thật. Mọi ảnh Tizen của player phải chụp từ thiết bị thật.
+Nếu sau này thay `stream_player_tizen` bằng plugin Tizen tự viết có track selection, thì phải sửa cả
+bảng capability ở mục 6 của README lẫn hai ô này.
 
 ### Banner launcher KHÔNG phải capture
 
