@@ -1,5 +1,10 @@
 # Flutter StreamTV
 
+<p align="center">
+  <img src="android/app/src/main/res/drawable-xxxhdpi/banner_logo.webp"
+       alt="Flutter StreamTV Android TV launcher banner" width="480">
+</p>
+
 **One Flutter codebase, two television platforms, one native player seam.**
 
 Flutter StreamTV is a television client built to the same framework-neutral product specification as
@@ -52,6 +57,7 @@ renaming anything. An empty Tizen cell names the exact file it is waiting for.
 | [5. The portrait player](#5-the-portrait-player) | The 9:16 stage, the interaction panel |
 | [6. One Dart API, two native players](#6-one-dart-api-two-native-players) | The bridge, and what differs per platform |
 | [7. Reproducing these captures](#7-reproducing-these-captures) | `tools/capture_media.py` |
+| [8. The launcher banner](#8-the-launcher-banner) | How the app introduces itself before it is opened |
 | [Technical reference](#technical-reference) | Riverpod, navigation, structure, build |
 
 ---
@@ -441,6 +447,43 @@ palette. Output lands in [`docs/images/`](docs/images/), always suffixed `-andro
 [`updateReadme.md`](updateReadme.md) is the companion runbook: which captures to re-run for a given
 source change, when a GIF is warranted over a still, which dummy item each demo depends on, and how to
 add the Tizen column.
+
+---
+
+## 8. The launcher banner
+
+The image at the top of this file is not decoration — it is
+[`banner_logo.webp`](android/app/src/main/res/drawable-xxxhdpi/banner_logo.webp), the asset the
+Android TV launcher shows in its apps row. It is the **only** part of the app a viewer sees before
+they open it, and on a television it is the app's whole first impression: there is no icon grid to
+fall back on, and the Leanback launcher will not list an app that has no banner at all.
+
+It is wired up in
+[`AndroidManifest.xml`](android/app/src/main/AndroidManifest.xml) with a single attribute on
+`<application>`:
+
+```xml
+android:banner="@drawable/banner_logo"
+```
+
+and is shipped across the density ladder so a 4K panel is not handed an upscaled image:
+
+| Bucket | Pixels | Size |
+|---|---|---|
+| `drawable-mdpi` | 320 × 180 | 28 KB |
+| `drawable-hdpi` | 480 × 270 | 64 KB |
+| `drawable-xhdpi` | 640 × 360 | 120 KB |
+| `drawable-xxhdpi` | 960 × 540 | 360 KB |
+| `drawable-xxxhdpi` | 1280 × 720 | 548 KB |
+
+The banner is laid out for the slot rather than scaled into it: the wordmark sits on the horizontal
+centre line with the tagline beneath, and nothing important goes near the edges, because the launcher
+crops and rounds the corners differently across TV OS versions. WebP throughout — the whole ladder
+costs about 1.1 MB, which PNG would roughly triple for no visible gain at this size.
+
+The Tizen build declares its own icon separately in
+[`tizen/tizen-manifest.xml`](tizen/tizen-manifest.xml); Tizen has no equivalent of the Leanback
+banner, so this asset is Android-only.
 
 ---
 
