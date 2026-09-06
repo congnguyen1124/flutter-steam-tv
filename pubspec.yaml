@@ -41,6 +41,14 @@ dev_dependencies:
   json_serializable: ^6.14.1
   riverpod_generator: ^4.0.9
 
+# AVPlay only ships ARM binaries, so its upstream package cannot even link on a TV emulator.
+# This local, version-pinned patch keeps the upstream ARM implementation and registers a no-op
+# native plugin on emulator architectures. Playback still requires a Samsung TV, but the app can
+# build and run on an emulator for shell, navigation, and lifecycle development.
+dependency_overrides:
+  video_player_avplay:
+    path: third_party/video_player_avplay
+
 flutter:
   uses-material-design: true
   assets:

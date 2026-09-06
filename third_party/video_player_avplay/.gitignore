@@ -1,0 +1,4 @@
+.dart_tool/
+build/
+tizen/Debug/
+tizen/Release/

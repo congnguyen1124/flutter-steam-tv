@@ -111,13 +111,17 @@ Tizen phát stream mạng nên `tizen/tizen-manifest.xml` phải khai báo
 `http://tizen.org/privilege/internet`. App không phát file local, vì vậy không xin `mediastorage` hay
 `externalstorage`.
 
-`video_player_avplay` **chỉ chạy trên TV Samsung thật, không chạy trên TV emulator** — pub.dev nói
-thẳng điều đó, và nó còn chặt hơn `video_player_tizen` trước đây. Triệu chứng điển hình là controller
-đã initialized, duration/position vẫn tăng nhưng external texture không nhận được frame nên vùng
-video giữ màu đen.
-Đây là giới hạn native của plugin trên emulator, không phải state của Riverpod hay
-`StreamPlayerView`. Emulator vẫn dùng để kiểm tra build, cài đặt, shell UI, navigation và lifecycle;
-playback native phải smoke test trên Samsung TV thật.
+`video_player_avplay` **chỉ chạy trên TV Samsung thật, không chạy trên TV emulator**. Upstream chỉ
+đóng gói PlusPlayer binary cho ARM; nếu dùng package nguyên bản thì build x86 fail ngay ở linker,
+trước khi app khởi động. App override dependency bằng bản source-pinned trong
+`third_party/video_player_avplay`: bản ARM giữ nguyên native implementation của upstream, còn kiến
+trúc emulator đăng ký một stub không có playback. Nhờ vậy emulator vẫn dùng để kiểm tra build, cài
+đặt, shell UI, navigation, lifecycle và error UI; mở stream sẽ đi vào error state bình thường.
+Playback native phải smoke test trên Samsung TV thật.
+
+Fork local chỉ mang binary `armel/6.0` vì manifest hiện target Tizen API 6.0. Nếu đổi `api-version`,
+phải đồng thời lấy đúng bộ binary cùng version từ upstream; AVPlay không bảo đảm binary của một API
+version chạy trên OS version khác.
 
 Trên TV thật, `tizen/App.cs` đặt `UIThreadPolicy` thành `RunOnSeparateThread`. Flutter-Tizen 3.44 mặc
 định chạy UI isolate trên platform thread; app này vừa tải ảnh mạng vừa nhận platform-channel event

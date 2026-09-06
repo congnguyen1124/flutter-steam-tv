@@ -11,6 +11,9 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # A source-pinned upstream plugin with its own lint baseline. It is compiled by Flutter-Tizen
+    # and kept out of this application's analysis context.
+    - third_party/**
   language:
     strict-casts: true
     strict-inference: true
