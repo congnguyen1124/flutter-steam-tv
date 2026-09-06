@@ -85,6 +85,15 @@ trống ngụ ý "sắp có", và sẽ không bao giờ có.
 Nếu sau này thay `stream_player_tizen` bằng plugin Tizen tự viết có track selection, thì phải sửa cả
 bảng capability ở mục 6 của README lẫn hai ô này.
 
+### Banner launcher KHÔNG phải capture
+
+README nhúng [`banner_logo.webp`](android/app/src/main/res/drawable-xxxhdpi/banner_logo.webp) ngay ở
+đầu file, nhưng nó **không** nằm trong `docs/images/` và `capture_media.py` không sinh ra nó. Đó là
+asset thiết kế tay, README trỏ thẳng vào `res/` để không nhân đôi file nhị phân.
+
+Đổi banner thì sửa cả 5 bucket density (mdpi → xxxhdpi) rồi cập nhật bảng kích thước ở mục 8 của
+README. Đừng chạy capture nào cả.
+
 ---
 
 ## 3. Ảnh tĩnh hay GIF?
