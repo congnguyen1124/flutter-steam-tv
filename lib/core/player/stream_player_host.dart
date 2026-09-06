@@ -14,7 +14,7 @@ import 'package:stream_player_tizen/stream_player_tizen.dart';
 /// - **Android's** is a real plugin. Its Kotlin half is registered by the generated plugin
 ///   registrant, and its Dart half declares `dartPluginClass`, so it may already be registered by
 ///   the time `main` runs — hence the [StreamPlayerPlatform.isRegistered] guard.
-/// - **Tizen's** is pure Dart: it adapts `video_player_tizen` rather than owning a native plugin,
+/// - **Tizen's** is pure Dart: it adapts `video_player_avplay` rather than owning a native plugin,
 ///   so nothing can register it automatically.
 ///
 /// ## Why the platform is named explicitly

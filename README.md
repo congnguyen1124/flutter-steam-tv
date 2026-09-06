@@ -30,7 +30,7 @@ Samsung TV, behind one Dart API.
 | **State management** | **Riverpod 3.4.3** with `riverpod_annotation` code generation — `@riverpod` notifiers, `AsyncValue` as the LCE state, no hand-written providers |
 | **Navigation** | `go_router` 18.0.1 — one `ShellRoute` for the browsing shell, players as top-level routes |
 | **Android TV** | compileSdk 37 · minSdk 26 · AGP 9.3.2 · Gradle 9.7.1 · Kotlin 2.3.20 |
-| **Tizen** | `flutter_tizen` 0.2.7 · Tizen API level **6.0** · `common` profile · `video_player_tizen` ^2.5.15 |
+| **Tizen** | `flutter_tizen` 0.2.7 · Tizen API level **6.0** · `common` profile · `video_player_avplay` ^0.8.16 (Samsung AVPlay/plusplayer) |
 | **Playback** | [`flutter_stream_player`](../flutter_stream_player) — four packages: a platform interface, an Android host over Media3, a Tizen host, and the app-facing API |
 
 ### How to read the screenshot tables
@@ -279,21 +279,26 @@ composed beneath its child, so a parent keeps its list state.
 <tr><td colspan="2"><em><strong>Metadata</strong> — opened from the <code>Description</code> pill. Back returns focus to that pill, not to the entry control.</em></td></tr>
 <tr>
 <td><img src="docs/images/player-settings-section-android.webp" alt="Settings section on Android TV"></td>
-<td align="center"><strong>Not applicable on Tizen</strong> — see below</td>
+<td align="center"><em>waiting for<br><code>docs/images/player-settings-section-tizen.webp</code></em></td>
 </tr>
 <tr><td colspan="2"><em><strong>Settings</strong> — one row per category: an icon, the category name, and <strong>the value in effect stacked underneath it</strong> rather than trailing it, because a long rendition label ellipsises away at this panel width and the value is the half the viewer opened the panel to check. The chevron is what tells a category row apart from an option row at a glance — one opens a list, the other commits a choice, and a remote has no hover state to disambiguate them. Settings never shows an empty category, and a category with a single option is dropped: on a remote it costs three presses to learn it could not have been anything else. This stream carries no subtitles and no alternative audio, so the root panel holds a single Quality row.</em></td></tr>
 <tr>
 <td><img src="docs/images/player-quality-section-android.webp" alt="Quality section on Android TV"></td>
-<td align="center"><strong>Not applicable on Tizen</strong> — see below</td>
+<td align="center"><em>waiting for<br><code>docs/images/player-quality-section-tizen.webp</code></em></td>
 </tr>
 <tr><td colspan="2"><em><strong>Settings → Quality</strong> — the rendition list read straight from the manifest, with <code>Auto</code> ticked because nothing has been pinned. A focused row inverts to a white fill; the row holding the value in effect keeps a faint fill and a hairline once focus moves off it, because at three metres the tick alone is easy to miss and it is the only other signal. The settings list stays composed underneath rather than being replaced, so returning to it keeps its scroll position and selected row.</em></td></tr>
 </table>
 
-**Why two cells say "not applicable" rather than waiting for a screenshot.** The Tizen host reports
-`StreamPlayerCapabilities.basic`, which does not include track selection. With no selectable
-renditions there are no categories, `settings.isAvailable` is false, and the settings control is
-**never rendered** on Tizen. There is no Tizen screenshot to take: pretending otherwise would leave a
-gap nobody ever closes. See [section 6](#6-one-dart-api-two-native-players).
+**These two cells used to read "not applicable on Tizen".** They no longer do. The Tizen host was
+built on `video_player_tizen`, which implements the federated `video_player` interface and so
+exposes no renditions at all — no categories, `settings.isAvailable` false, no settings control
+drawn. Moving the host to Samsung's `video_player_avplay` exposes the manifest, so **Quality and
+Audio now appear on Tizen too** and both cells are waiting for a real screenshot.
+
+Subtitles remain the exception, and deliberately: AVPlay can switch a text track but exposes no way
+to turn subtitles *off*, and the app always offers `Off` as the first row. A menu whose first entry
+silently does nothing is worse than no menu, so `textTrackSelection` stays false. See
+[section 6](#6-one-dart-api-two-native-players).
 
 ---
 
@@ -388,7 +393,7 @@ method channel and a federated plugin, in the sibling project
         stream_player_platform_interface   ← one closed command set, one event vocabulary
                     ┌────────┴────────┐
      stream_player_android      stream_player_tizen
-       Media3 / ExoPlayer         video_player_tizen
+       Media3 / ExoPlayer        video_player_avplay
         (MethodChannel +            (pure Dart adapter)
          EventChannel)
 ```
@@ -403,24 +408,30 @@ lose quality selection.
 Every host declares what it supports, and the UI is gated on that declaration rather than on a
 platform check:
 
-| Capability | Android TV (Media3) | Tizen (`video_player_tizen`) |
+| Capability | Android TV (Media3) | Tizen (`video_player_avplay`) |
 |---|---|---|
 | Play, pause, seek | ✅ | ✅ |
 | Playback speed | ✅ | ✅ |
-| Video track selection (Quality) | ✅ | ❌ |
-| Audio track selection | ✅ | ❌ |
-| Text track selection | ✅ | ❌ |
+| **Video track selection (Quality)** | ✅ | ✅ |
+| **Audio track selection** | ✅ | ✅ |
+| Text track selection | ✅ | ❌ — no way to turn subtitles off |
+| Buffered lookahead | ✅ | ❌ — AVPlay reports buffer *fill*, not a position |
 | Bitrate constraints | ✅ | ❌ |
 | Client-side ads | ✅ | ❌ |
 | Subtitle cues | ✅ | ❌ |
 
 A command for a capability the host lacks is a no-op, not a crash — but the UI never sends one,
-because a control it cannot honour is never drawn. That is why the settings button is simply absent on
-Tizen instead of opening an empty panel.
+because a control it cannot honour is never drawn. That is why Tizen gets a Settings panel holding
+Quality and Audio and **no Subtitles row at all**, rather than a Subtitles menu whose `Off` does
+nothing.
 
-`StreamPlayerTizen` is deliberately a thin adapter over `video_player_tizen`, and it is the documented
-swap seam: replacing it with a purpose-built Tizen plugin changes that one package and nothing in this
-app. The full design, including the wire protocol and the reducer:
+Neither player screen changed to make that happen. Both build their settings panel from
+`capabilities` and the reported track lists, so raising what Tizen declares is the whole change —
+which is the point of gating on capabilities rather than on a platform check.
+
+`StreamPlayerTizen` is deliberately a thin adapter over `video_player_avplay`, and it is the
+documented swap seam: replacing it with a purpose-built Tizen plugin changes that one package and
+nothing in this app. The full design, including the wire protocol and the reducer:
 [`doc_architechture/native_player_bridge.md`](doc_architechture/native_player_bridge.md).
 
 ---

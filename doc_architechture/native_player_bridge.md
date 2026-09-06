@@ -23,8 +23,8 @@ flowchart TD
     Android -->|"MethodChannel + EventChannel"| Kotlin[StreamPlayerPlugin - Kotlin]
     Kotlin --> Engine["com.congnguyencn:stream-player<br/>Media3 / ExoPlayer"]
 
-    Tizen -->|"gọi Dart trực tiếp"| VP[video_player]
-    VP --> TizenNative["video_player_tizen - C++<br/>capi-media-player"]
+    Tizen -->|"gọi Dart trực tiếp"| VP["video_player_avplay - Dart"]
+    VP --> TizenNative["AVPlay / plusplayer - C++"]
 
     Engine -->|"snapshot → diff → fact"| Reducer
     TizenNative -->|"VideoPlayerValue → diff → fact"| Reducer
@@ -92,9 +92,11 @@ Ba điểm đều có chủ ý:
   đó thành no-op, và làm hot restart vô hại.
 - **Gọi tên platform rõ ràng.** Viết kiểu "cái nào chưa ai chiếm thì đăng ký" trông gọn hơn nhưng
   sai: nếu registrant của Android vì lý do nào đó không chạy, bản đó sẽ **âm thầm** cài host *Tizen*
-  trên Android — nơi `video_player` vẫn chạy được thật, nhưng chỉ với
-  `StreamPlayerCapabilities.basic`. App vẫn phát video và im lặng mất tính năng chọn chất lượng, và
-  không có gì báo tại sao. Gọi tên platform làm lỗi đó không thể xảy ra.
+  trên Android. Host Tizen giờ khai báo `StreamPlayerCapabilities.tizenAvplay` nên settings panel
+  vẫn hiện — nhưng nó nói chuyện với AVPlay, thứ **không tồn tại trên Android**, nên mọi lệnh rơi
+  vào hư không và không có gì báo tại sao. Đổi backend làm lỗi này *khó thấy hơn* chứ không nhẹ đi:
+  trước kia panel biến mất là dấu hiệu; giờ panel vẫn đó và chỉ là không hoạt động. Gọi tên platform
+  làm lỗi đó không thể xảy ra.
 - **Không dùng `Platform.isLinux` để nhận diện Tizen.** Dart VM của Flutter-Tizen báo Linux, nên app
   dùng `flutter_tizen.isTizen`, vốn kiểm tra biến môi trường `TIZEN_API_VERSION` do runtime Tizen
   cung cấp. Nhờ vậy bản Linux desktop không bị nhận nhầm là TV.
@@ -109,8 +111,10 @@ Tizen phát stream mạng nên `tizen/tizen-manifest.xml` phải khai báo
 `http://tizen.org/privilege/internet`. App không phát file local, vì vậy không xin `mediastorage` hay
 `externalstorage`.
 
-`video_player_tizen` không hỗ trợ TV emulator. Triệu chứng điển hình là controller đã initialized,
-duration/position vẫn tăng nhưng external texture không nhận được frame nên vùng video giữ màu đen.
+`video_player_avplay` **chỉ chạy trên TV Samsung thật, không chạy trên TV emulator** — pub.dev nói
+thẳng điều đó, và nó còn chặt hơn `video_player_tizen` trước đây. Triệu chứng điển hình là controller
+đã initialized, duration/position vẫn tăng nhưng external texture không nhận được frame nên vùng
+video giữ màu đen.
 Đây là giới hạn native của plugin trên emulator, không phải state của Riverpod hay
 `StreamPlayerView`. Emulator vẫn dùng để kiểm tra build, cài đặt, shell UI, navigation và lifecycle;
 playback native phải smoke test trên Samsung TV thật.
@@ -385,11 +389,14 @@ thể nằm dưới control row khi chrome hiện. Cách sửa là truyền `sho
 
 ## 6. Capabilities — câu trả lời trung thực cho hai nền tảng không đều nhau
 
-| | Android (`stream-player`) | Tizen (`video_player_tizen`) |
+| | Android (`stream-player`) | Tizen (`video_player_avplay`) |
 |---|---|---|
 | Play / pause / stop / seek | có | có |
 | Tốc độ phát | có | có |
-| Danh sách rendition (chất lượng / audio / phụ đề) | có | **không** |
+| Chọn rendition video (chất lượng) | có | **có** |
+| Chọn rendition audio | có | **có** |
+| Chọn phụ đề | có | **không** — không có đường tắt phụ đề |
+| Buffered lookahead | có | **không** — AVPlay báo mức *đầy buffer*, không phải vị trí |
 | Giới hạn bitrate | có | **không** |
 | Cue phụ đề trong Dart | có | **không** (native tự vẽ) |
 | Quảng cáo client-side (CSAI) | có | **không** |
@@ -409,16 +416,39 @@ trên Tizen nút settings không xuất hiện, thay vì mở ra một panel r�
 Ba lựa chọn khác đều tệ hơn: *throw* làm app crash lần đầu ai đó mở settings trên Tizen; *im lặng
 no-op* làm menu hiện ra, người xem chọn 1080p, không có gì xảy ra và không phân biệt được với bug.
 
-## 7. Về `video_player_tizen`: đủ dùng chưa, hay cần viết plugin riêng?
+## 7. Vì sao đổi từ `video_player_tizen` sang `video_player_avplay`
 
-**Bắt đầu bằng `video_player_tizen`.** Nó do chính đội flutter-tizen viết và bảo trì, dùng player API
-của Tizen, và nó đủ để chứng minh *hợp đồng* chạy được: play, pause, seek, tốc độ, HLS, progress.
-Viết plugin C++ riêng ngay từ đầu là vài nghìn dòng chỉ kiểm chứng được trên TV Samsung thật — và cái
-được kiểm chứng khi đó là "lần đầu viết media C++ trên Tizen", chứ không phải kiến trúc.
+`video_player_tizen` hiện thực **federated interface của `video_player`**, nên nó thừa hưởng đúng bề
+mặt của interface đó: play, pause, seek, tốc độ, volume, progress — và **không có gì về rendition**.
+Người xem trên Tizen không chọn được độ phân giải, và capability flags phản ánh đúng điều đó bằng
+cách ẩn hẳn panel Settings.
 
-**Đổi sang plugin riêng khi cần một trong các thứ sau**, vì `video_player` không mở ra:
+`video_player_avplay` là plugin của chính Samsung trên AVPlay/plusplayer. Nó mở ra manifest:
+`videoTracks`, `audioTracks`, `textTracks` kèm width/height/bitrate/language, cộng `setTrackSelection`
+để ghim một rendition. Đó là toàn bộ lý do đổi.
 
-- Chọn chất lượng / audio / phụ đề (rendition).
+### Ba cái bẫy trong API của AVPlay
+
+1. **`VideoPlayerValue.tracks` KHÔNG BAO GIỜ được ghi.** Field có tồn tại, nhưng không code path nào
+   set nó — đọc vào là list rỗng suốt vòng đời player, và không có lỗi nào giải thích. Phải gọi
+   getter async `videoTracks` / `audioTracks` / `textTracks`.
+2. **`duration` là `DurationRange`, không phải `Duration`.** `end - start` cho ra đúng cả hai ca:
+   VOD bắt đầu từ 0 nên span chính là độ dài; live không DVR báo cửa sổ rỗng → 0 → hợp đồng đọc là
+   "không seek được".
+3. **`buffered` là mức đầy buffer (0–100), không phải vị trí.** Native side dùng nó để quyết định khi
+   nào bắt đầu/kết thúc buffering (`100` = xong, `<=5` = bắt đầu). Nhân nó với duration sẽ vẽ ra
+   thanh progress nói rằng cả video đã buffer xong chỉ vài giây sau khi phát. Host này vì thế **không
+   báo lookahead** — đó là câu trả lời trung thực.
+
+`auto` không có lệnh trực tiếp (`setTrackSelection` chỉ ghim được một rendition), nên nó được diễn
+đạt bằng cách bật lại adaptive bitrate qua streaming property; khi ghim thì tắt ABR trước để player
+không lập tức nhảy khỏi lựa chọn vừa chọn.
+
+## 7b. Khi nào cần viết plugin Tizen riêng
+
+**Đổi sang plugin riêng khi cần một trong các thứ sau**, vì AVPlay qua Dart không mở ra:
+
+- Tắt phụ đề (`off`) — cái duy nhất chặn `textTrackSelection`.
 - DRM (khi đó nhìn sang `video_player_videohole`).
 - 4K trên mặt phẳng video của phần cứng (video hole), thay vì decode ra texture.
 - CSAI / quảng cáo.
@@ -433,7 +463,7 @@ Viết plugin C++ riêng ngay từ đầu là vài nghìn dòng chỉ kiểm ch�
 3. Mở rộng `capabilities` theo từng feature plugin làm được.
 
 **Không có gì phía trên `StreamPlayerPlatform` phải sửa** — kể cả `PlayerScreen`. Ba chỗ nên xoá đầu
-tiên: `mapTizenPlaybackError`, `TizenPlayerSession._bufferedEndOf`, và nhánh `atDefaultPosition`
+tiên: `mapTizenPlaybackError`, `TizenPlayerSession._bufferedPositionOf`, và nhánh `atDefaultPosition`
 trong `_toggle`.
 
 ## 8. Kiểm tra
